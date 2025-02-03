@@ -1,0 +1,2 @@
+test_mae,test_rmse,test_r2,test_pearson_corr
+0.667±0.055,1.082±0.088,0.911±0.008,0.957±0.001
