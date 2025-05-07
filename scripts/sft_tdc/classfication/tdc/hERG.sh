@@ -3,9 +3,9 @@ DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
 
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=ma-mamba
-TASK_NAME=CYP2D6_Substrate_CarbonMangels
+TASK_NAME=hERG
 MODEL_CLASS=MA_MambaFinetune
-DATATYPE=sft_tdc_geo
+DATATYPE=tdc_geo_tox
 
 # Base config
 output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}
@@ -21,7 +21,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29500 --include localhost:1 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29505 --include localhost:5 ${BASE_DIR}/train/finetune.py \
     --model_class ${MODEL_CLASS} \
     --task_type classification \
     --model_name_or_path ${BASE_MODEL} \

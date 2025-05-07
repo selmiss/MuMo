@@ -21,7 +21,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29500 --include localhost:1 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29502 --include localhost:1 ${BASE_DIR}/train/finetune.py \
     --model_class ${MODEL_CLASS} \
     --task_type classification \
     --model_name_or_path ${BASE_MODEL} \

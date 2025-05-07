@@ -32,8 +32,8 @@ deepspeed --master_port 29500 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.csv \
     --data_column_name smiles \
     --label_column_name Y \
-    --per_device_train_batch_size 1 \
-    --per_device_eval_batch_size 1 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
     --class_weight True \
     --do_train \
     --do_eval \
