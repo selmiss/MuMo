@@ -1,11 +1,11 @@
 BASE_DIR=/home/UWO/zjing29/Mams/MA-Mamba # Change to your project dir
-DATA_DIR=/data/lab_ph/zihao/Nips/dataset/ # Change to your data file dir
+DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
 
 export PYTHONPATH=${BASE_DIR}
-MODEL_NAME=$1
+MODEL_NAME=ma-mamba
 TASK_NAME=bace
-MODEL_CLASS=$4
-DATATYPE=$5
+MODEL_CLASS=MA_MambaFinetune
+DATATYPE=sft_geo_randomsplit
 
 for i in {1..3}
 do
@@ -24,7 +24,7 @@ do
     cp ${DS_CONFIG} ${output_model}
 
     # Runner
-    deepspeed --master_port $2 --include localhost:$3 ${BASE_DIR}/train/finetune.py \
+    deepspeed --master_port 29500 --include localhost:3 ${BASE_DIR}/train/finetune.py \
         --model_class ${MODEL_CLASS} \
         --task_type classification \
         --model_name_or_path ${BASE_MODEL} \

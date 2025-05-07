@@ -1,9 +1,8 @@
-BASE_DIR=/home/UWO/zjing29/Mams/MA-Mamba # Change to your project dir
-DATA_DIR=/data/lab_ph/zihao/Nips/dataset/ # Change to your data file dir
-
+BASE_DIR=xxx # Change to your project dir
+DATA_DIR=xxx # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=$1
-TASK_NAME=bace
+TASK_NAME=bbbp
 MODEL_CLASS=$4
 DATATYPE=$5
 
@@ -29,14 +28,14 @@ do
         --task_type classification \
         --model_name_or_path ${BASE_MODEL} \
         --pool_method bipooler \
-        --tokenizer_name ${BASE_MODEL} \
         --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.csv \
-        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
+        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.csv \
         --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
         --data_column_name smiles \
-        --label_column_name Class \
+        --label_column_name p_np \
         --per_device_train_batch_size 1 \
         --per_device_eval_batch_size 1 \
+        --class_weight True \
         --do_train \
         --do_eval \
         --train_on_inputs True \
@@ -44,14 +43,15 @@ do
         --output_dir ${output_model} \
         --max_eval_samples 1000 \
         --learning_rate 1e-5 \
-        --lr_scheduler_type cosine \
+        --lr_scheduler_type linear \
         --gradient_accumulation_steps 1 \
-        --num_train_epochs 5 \
-        --warmup_steps 5 \
+        --num_train_epochs 3 \
+        --warmup_steps 50 \
         --logging_dir ${output_model}/logs \
         --logging_strategy steps \
-        --logging_steps 10 \
+        --logging_steps 50 \
         --save_strategy no \
+        --save_total_limit 5 \
         --preprocessing_num_workers 10 \
         --evaluation_strategy steps \
         --eval_steps 100 \
@@ -64,7 +64,6 @@ do
         --bf16 False \
         --torch_dtype float32 \
         | tee -a ${output_model}/train.log
-
 done
 
 # --resume_from_checkpoint ${output_model}/checkpoint-20400 \

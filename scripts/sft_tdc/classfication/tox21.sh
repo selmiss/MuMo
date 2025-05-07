@@ -1,12 +1,11 @@
-BASE_DIR=/home/UWO/zjing29/Mams/MA-Mamba # Change to your project dir
-DATA_DIR=/data/lab_ph/zihao/Nips/dataset/ # Change to your data file dir
-
+BASE_DIR=xxx # Change to your project dir
+DATA_DIR=xxx # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=$1
-TASK_NAME=bace
-MODEL_CLASS=$4
+TASK_NAME=tox21
 DATATYPE=$5
-
+MODEL_CLASS=$4
+CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
 for i in {1..3}
 do
     echo $i
@@ -26,20 +25,22 @@ do
     # Runner
     deepspeed --master_port $2 --include localhost:$3 ${BASE_DIR}/train/finetune.py \
         --model_class ${MODEL_CLASS} \
+        --output_size 12 \
         --task_type classification \
+        --pool_method mixpooler \
+        --config_name ${CONFIG_NAME} \
         --model_name_or_path ${BASE_MODEL} \
-        --pool_method bipooler \
-        --tokenizer_name ${BASE_MODEL} \
         --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.csv \
         --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
         --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
         --data_column_name smiles \
-        --label_column_name Class \
+        --label_column_name NR-AR NR-AR-LBD NR-AhR NR-Aromatase NR-ER NR-ER-LBD NR-PPAR-gamma SR-ARE SR-ATAD5 SR-HSE SR-MMP SR-p53 \
         --per_device_train_batch_size 1 \
         --per_device_eval_batch_size 1 \
         --do_train \
         --do_eval \
         --train_on_inputs True \
+        --class_weight True \
         --use_fast_tokenizer false \
         --output_dir ${output_model} \
         --max_eval_samples 1000 \
@@ -47,14 +48,14 @@ do
         --lr_scheduler_type cosine \
         --gradient_accumulation_steps 1 \
         --num_train_epochs 5 \
-        --warmup_steps 5 \
+        --warmup_steps 50 \
         --logging_dir ${output_model}/logs \
         --logging_strategy steps \
-        --logging_steps 10 \
+        --logging_steps 50 \
         --save_strategy no \
         --preprocessing_num_workers 10 \
         --evaluation_strategy steps \
-        --eval_steps 100 \
+        --eval_steps 200 \
         --seed 42 \
         --disable_tqdm false \
         --block_size 1024 \
@@ -64,7 +65,5 @@ do
         --bf16 False \
         --torch_dtype float32 \
         | tee -a ${output_model}/train.log
-
+        
 done
-
-# --resume_from_checkpoint ${output_model}/checkpoint-20400 \
