@@ -213,6 +213,7 @@ class MA_MambaFinetune(MambaPreTrainedModel):
                 logits = logits.view(-1, self.output_size)
                 if not self.multi_mark:
                     labels = labels.view(-1)
+                    labels = labels.long()
                 elif self.multi_mark:
                     labels = labels.view(-1, self.output_size)
                     labels = labels.to(dtype=torch.float)
