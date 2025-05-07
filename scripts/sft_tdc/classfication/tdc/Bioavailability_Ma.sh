@@ -3,7 +3,7 @@ DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
 
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=ma-mamba
-TASK_NAME=CYP2D6_Veith
+TASK_NAME=Bioavailability_Ma
 MODEL_CLASS=MA_MambaFinetune
 DATATYPE=sft_tdc_geo
 
@@ -21,7 +21,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29506 --include localhost:6 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29509 --include localhost:1 ${BASE_DIR}/train/finetune.py \
     --model_class ${MODEL_CLASS} \
     --task_type classification \
     --model_name_or_path ${BASE_MODEL} \

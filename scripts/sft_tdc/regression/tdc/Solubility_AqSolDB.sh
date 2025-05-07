@@ -1,11 +1,12 @@
-BASE_DIR=/home/UWO/zjing29/Mams/MA-Mamba # Change to your project dir
-DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
-
+BASE_DIR=/root/MA-Mamba
+DATA_DIR=/root/autodl-tmp
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=ma-mamba
-TASK_NAME=CYP2D6_Veith
+TASK_NAME=Solubility_AqSolDB
 MODEL_CLASS=MA_MambaFinetune
 DATATYPE=sft_tdc_geo
+CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+
 
 # Base config
 output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}
@@ -21,36 +22,35 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29506 --include localhost:6 ${BASE_DIR}/train/finetune.py \
-    --model_class ${MODEL_CLASS} \
-    --task_type classification \
+deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.py \
     --model_name_or_path ${BASE_MODEL} \
-    --pool_method bipooler \
-    --tokenizer_name ${BASE_MODEL} \
+    --config_name ${CONFIG_NAME} \
     --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.csv \
     --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.csv \
     --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.csv \
     --data_column_name smiles \
     --label_column_name Y \
-    --per_device_train_batch_size 4 \
-    --per_device_eval_batch_size 4 \
-    --class_weight True \
+    --normlization True \
+    --per_device_train_batch_size 10 \
+    --per_device_eval_batch_size 10 \
+    --train_on_inputs True \
+    --model_class ${MODEL_CLASS} \
+    --task_type regression \
     --do_train \
     --do_eval \
-    --train_on_inputs True \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
     --max_eval_samples 1000 \
-    --learning_rate 1e-5 \
+    --frozen_layer -2 \
+    --learning_rate 3e-5 \
     --lr_scheduler_type linear \
     --gradient_accumulation_steps 1 \
-    --num_train_epochs 5 \
-    --warmup_steps 20 \
+    --num_train_epochs 15 \
+    --warmup_steps 10 \
     --logging_dir ${output_model}/logs \
     --logging_strategy steps \
-    --logging_steps 50 \
+    --logging_steps 20 \
     --save_strategy no \
-    --save_total_limit 5 \
     --preprocessing_num_workers 10 \
     --evaluation_strategy steps \
     --eval_steps 100 \
@@ -62,6 +62,5 @@ deepspeed --master_port 29506 --include localhost:6 ${BASE_DIR}/train/finetune.p
     --ignore_data_skip true \
     --bf16 False \
     --torch_dtype float32 \
+    --deepspeed ${DS_CONFIG} \
     | tee -a ${output_model}/train.log
-
-# --resume_from_checkpoint ${output_model}/checkpoint-20400 \
