@@ -1,5 +1,5 @@
-BASE_DIR=/home/UWO/zjing29/Mams/MA-Mamba # Change to your project dir
-DATA_DIR=/data/lab_ph/zihao/Nips/dataset/ # Change to your data file dir
+BASE_DIR=xxx # Change to your project dir
+DATA_DIR=xxx/Nips/dataset/ # Change to your data file dir
 
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=$1

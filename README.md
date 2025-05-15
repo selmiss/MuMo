@@ -1,4 +1,4 @@
-# **MA-Mamba: Multimodal Molecular Representation Learning via Hierarchical Fusion and Attention-Augmented Mamba (Anonymous Submission)**
+# **MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection (Anonymous Submission)**
 
 *(Anonymous Submission for [Leading AI Conference], Paper ID: XXXX)*
 
@@ -8,9 +8,11 @@ This repository contains the code, dataset, and trained models used in our resea
 
 **Abstract**
 
-Molecular representation learning is critical for computational chemistry and drug discovery, yet existing methods encounter key challenges. While 2D graph- and 3D geometry-based approaches excel at detailed molecular modeling at the expense of capturing coarse-grained context, sequence-based methods compress topological and geometric information, resulting in a compromise of structural fidelity. To address these limitations, we propose Multimodal Attention-Augmented Mamba (MA-Mamba), which integrates sequence, 2D graph, and 3D geometry features through a hierarchical fusion approach. Central to MA-Mamba is an attention-augmented Mamba module that effectively extracts sequence features while preserving inter-modality coherence. To further refine global context integration with local geometry, we introduce a substructure partitioning method for molecular geometry, enabling the precise capture of fine-grained 3D interactions. Experimental results on benchmarks such as MoleculeNet and molecular similarity tasks, supported by extensive ablation studies, demonstrate that MA-Mamba achieves leading performance in multimodal molecular representation learning.****
+Multimodal molecular models often suffer from 3D conformer sensitivity and modality mismatch, limiting their robustness and generalization. We propose \textbf{MuMo}, a structured fusion framework that addresses these challenges through two key components. To reduce the unstable of conformer-dependent fusion, we design a structured fusion pipeline (SFP) that combines 2D topology and 3D geometry into a stable structural prior. To mitigate modality mismatch from symmetric fusion, we introduce an Injection-Enhanced Attention (IEA) mechanism that asymmetrically integrates this prior into the sequence stream, preserving modality-specific modeling while enabling cross-modal enrichment. 
+Built on a state space backbone, MuMo supports long-range dependency modeling and robust information propagation. 
+Across 22 benchmark tasks from TDC and MoleculeNet, MuMo achieves an average improvement of 2.7\% over the best-performing baseline on each task, ranking first on 17 of them, including a 27\% reduction in MAE on LD50. These results validate its robustness to 3D conformer noise and the effectiveness of asymmetric, structure-aware fusion.
 
-![structure](./fig/structure.jpg)
+![structure](./fig/structure.png)
 ![structure](./fig/fusion.jpg)
 
 ---

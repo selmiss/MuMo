@@ -12,7 +12,7 @@ from torch_geometric.nn import global_add_pool
 from model.attention_mamba import AttentionMambaBlock
 from model.fusion_block import HierarchicalFusionBlock
 import torch.nn.init as init
-
+from transformers.modeling_outputs import ModelOutput
 
 def reverse_seq_tensor(batch_seq):
     # Reverse the sequences along dimension 1 (seq_len)
