@@ -1,6 +1,6 @@
 # **MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection (Anonymous Submission)**
 
-*(Anonymous Submission for [Leading AI Conference], Paper ID: XXXX)*
+*(Anonymous Submission for NeurIPS 2025, Paper ID: 17946)*
 
 This repository contains the code, dataset, and trained models used in our research paper submitted to a leading AI conference. Due to the double-blind review process, all authorship details have been removed.
 
