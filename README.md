@@ -35,8 +35,8 @@ To ensure reproducibility, we provide a list of required dependencies.
 ### **Using Conda (Recommended)**
 
 ```bash
-conda create -n ma_mamba python=3.11
-conda activate ma_mamba
+conda create -n mumo python=3.11
+conda activate mumo
 pip install -r requirements.txt
 ```
 
@@ -60,9 +60,9 @@ After downloading the ZIP compressed dataset, extract it to obtain the `dataset`
 
 Place the extracted and merged `dataset` folder in an appropriate location on your system and remember its path. Then, update the `DATA_DIR` variable in the bash scripts you need to run within this repository to point to the dataset folder's path. 
 
-Similarly, update the `BASE_DIR` variable to the path where you have placed the `MA-Mamba` repository (including the `MA-Mamba` folder itself). 
+Similarly, update the `BASE_DIR` variable to the path where you have placed the `MuMo` repository (including the `MuMo` folder itself). 
 
-Ensure that **neither `DATA_DIR` nor `BASE_DIR` includes a trailing slash in the end**. It is recommended to use VS Code’s search-and-replace feature for quick modifications, search and replace `DATA_DIR` and `BASE_DIR`.
+Ensure that **neither `DATA_DIR` nor `BASE_DIR` includes a trailing slash in the end**. It is recommended to use VS Code's search-and-replace feature for quick modifications, search and replace `DATA_DIR` and `BASE_DIR`.
 
 If you want to process your own data, please use `mol3d_processor.py` to do it, there is an example in it.
 ---
@@ -88,7 +88,7 @@ We run pretraining on 4\*A100-80GPUs, and finetuning on 2\*A100-80GPUs using dee
 **One line of code to run all the pipeline! (Pretrain & Finetune)**
 
 ```bash
-cd MA-Mamba/scripts/; bash reproduce.sh
+cd MuMo/scripts/; bash reproduce.sh
 ```
 
 Be sure that you prepare pretrain datasets and finetuning datasets in a `dataset`directory.
@@ -100,8 +100,8 @@ First, you should download the datasets (link is provided above) to your data di
 To train the model from scratch, use:
 
 ```bash
-cd MA-Mamba
-bash ./scripts/pretrain/ma-mamba.sh
+cd MuMo
+bash ./scripts/pretrain/mumo.sh
 ```
 
 ### **(2) Finetuning**
@@ -109,9 +109,9 @@ bash ./scripts/pretrain/ma-mamba.sh
 To finetune the pretrained model, run:
 
 ```bash
-cd MA-Mamba
-master_port=29500 gpus=0,1 bash ./scripts/sft/tuning_all.sh ma-mamba bace,bbbp,clintox,tox21,sider,delaney,lipo,freesolv MA_MambaFinetune sft_geo_randomsplit;
-master_port=29500 gpus=0,1 bash ./scripts/sft/tuning_all.sh ma-mamba bace,bbbp MA_MambaFinetune sft_geo_scaffoldsplit;
+cd MuMo
+master_port=29500 gpus=0,1 bash ./scripts/sft/tuning_all.sh mumo bace,bbbp,clintox,tox21,sider,delaney,lipo,freesolv MuMoFinetune sft_geo_randomsplit;
+master_port=29500 gpus=0,1 bash ./scripts/sft/tuning_all.sh mumo bace,bbbp MuMoFinetune sft_geo_scaffoldsplit;
 ```
 
 When the training finished, the results will be written to `./results/`. We have already  provided the results we trained for the paper in the `./results` folder.

@@ -30,10 +30,10 @@ GPUs=0,1,2,3
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
     --run_name ${output_model} \
     --config_name ${MODEL_CONFIG} \
-    --tokenizer_name ${BASE_DIR}/smiles_tokenizer/ma_mamba_tokenizer \
+    --tokenizer_name ${BASE_DIR}/smiles_tokenizer/mumo_tokenizer \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
-    --model_class MA_MambaPretrain \
+    --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
     --train_files ${DATA_DIR}/dataset/pretrain/geo_data/chembl_train_dict.jsonl \
     --validation_files ${DATA_DIR}/dataset/pretrain/geo_data/chembl_eval_dict.jsonl \

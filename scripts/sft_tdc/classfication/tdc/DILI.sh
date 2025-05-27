@@ -2,9 +2,9 @@ BASE_DIR=xxx # Change to your project dir
 DATA_DIR=xxx/Nips # Change to your data file dir
 
 export PYTHONPATH=${BASE_DIR}
-MODEL_NAME=ma-mamba
+MODEL_NAME=mumo
 TASK_NAME=DILI
-MODEL_CLASS=MA_MambaFinetune
+MODEL_CLASS=MuMoFinetune
 DATATYPE=tdc_geo_tox
 
 # Base config

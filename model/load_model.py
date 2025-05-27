@@ -1,7 +1,7 @@
 import torch.nn as nn
 from transformers import AutoConfig
 from model.attention_mamba import *
-from model.ma_mamba import *
+from model.mumo import *
 
 def initialize_weights(model):
     """

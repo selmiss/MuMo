@@ -1,14 +1,14 @@
 BASE_DIR=xxx # Change to your project dir
 DATA_DIR=xxx/model # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
-MODEL_NAME=ma-mamba
+MODEL_NAME=mumo
 TASK_NAME=xx
 DATATYPE=xx
-MODEL_CLASS=MA_MambaFinetune
+MODEL_CLASS=MuMoFinetune
 CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
 
 # Base config
-output_model=xxx/model/sft/ma-mamba/dk
+output_model=xxx/model/sft/mumo/dk
 BASE_MODEL=${DATA_DIR}/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 

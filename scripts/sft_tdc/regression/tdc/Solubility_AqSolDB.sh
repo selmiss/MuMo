@@ -1,9 +1,9 @@
 BASE_DIR=/root/MA-Mamba
 DATA_DIR=/root/autodl-tmp
 export PYTHONPATH=${BASE_DIR}
-MODEL_NAME=ma-mamba
+MODEL_NAME=mumo
 TASK_NAME=Solubility_AqSolDB
-MODEL_CLASS=MA_MambaFinetune
+MODEL_CLASS=MuMoFinetune
 DATATYPE=sft_tdc_geo
 CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
 

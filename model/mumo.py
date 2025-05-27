@@ -20,8 +20,8 @@ def reverse_seq_tensor(batch_seq):
 
     return reversed_seq  
     
-# MA-Mamba core model - Insert Graph and Geometry Information in the half way.
-class MA_MambaModel(MambaPreTrainedModel):
+# MuMo core model - Insert Graph and Geometry Information in the half way.
+class MuMoModel(MambaPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
 
@@ -90,12 +90,12 @@ class MA_MambaModel(MambaPreTrainedModel):
         
         return (hidden_states, all_hidden_states, all_attn_score)
 
-# MA-Mamba  pretrain model
-class MA_MambaPretrain(MambaPreTrainedModel):
+# MuMo pretrain model
+class MuMoPretrain(MambaPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.layer_hidden_states = []
-        self.backbone = MA_MambaModel(config=config)
+        self.backbone = MuMoModel(config=config)
         self.to_logits = nn.Sequential(
             nn.Linear(config.hidden_size, config.vocab_size),
         )
@@ -119,12 +119,12 @@ class MA_MambaPretrain(MambaPreTrainedModel):
 
         return {"logits": logits, "loss": loss}
 
-# MA-Mamba  Fintune Model.
-class MA_MambaFinetune(MambaPreTrainedModel):
+# MuMo Fintune Model.
+class MuMoFinetune(MambaPreTrainedModel):
     def __init__(self, config, class_weight=None):
         super().__init__(config)
 
-        self.backbone = MA_MambaModel(config=config)
+        self.backbone = MuMoModel(config=config)
         self.pooler = BertPooler(config)
         self.pool_method = getattr(config, 'pool_method', 'bert')
         if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
