@@ -41,6 +41,6 @@
   "use_cache": true,
   "use_conv_bias": true,
   "vocab_size": 2364,
-  "brics": true,
-  "geo_operation": true
+  "brics": false,
+  "geo_operation": false
 }

@@ -23,8 +23,8 @@ export CUDA_HOME=/usr/local/cuda/
 # export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
-MASTER_PORT=29501
-GPUs=1,2
+MASTER_PORT=29500
+GPUs=0,6
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
@@ -33,7 +33,7 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --tokenizer_name ${BASE_DIR}/smiles_tokenizer/mumo_tokenizer \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
-    --model_class MuMoPretrain \
+    --model_class MuMoFormerPretrain \
     --ddp_timeout 18000000 \
     --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
     --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \

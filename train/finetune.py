@@ -282,23 +282,23 @@ class DataTrainingArguments:
                 extension = self.train_files[0].split(".")[-1]
                 assert extension in [
                     "csv",
-                    "json",
+                    "jsonl",
                     "txt",
-                ], "`train_file` should be a csv, a json or a txt file."
+                ], "`train_file` should be a csv, a jsonl or a txt file."
             if self.validation_files is not None:
                 extension = self.validation_files[0].split(".")[-1]
                 assert extension in [
                     "csv",
-                    "json",
+                    "jsonl",
                     "txt",
-                ], "`validation_file` should be a csv, a json or a txt file."
+                ], "`validation_file` should be a csv, a jsonl or a txt file."
             if self.test_files is not None:
                 extension = self.test_files[0].split(".")[-1]
                 assert extension in [
                     "csv",
-                    "json",
+                    "jsonl",
                     "txt",
-                ], "`test_file` should be a csv, a json or a txt file."
+                ], "`test_file` should be a csv, a jsonl or a txt file."
 
 
 type_map = {
@@ -387,23 +387,105 @@ def main():
             data_files["validation"] = data_args.validation_files
         if data_args.test_files is not None:
             data_files["test"] = data_args.test_files
-        extension = (
-            data_args.train_files[0].split(".")[-1]
-            if data_args.train_files is not None
-            else data_args.validation_files.split(".")[-1]
-        )
+            
+        # Identify extension
+        if "train" in data_files and len(data_files["train"]) > 0:
+            extension = data_files["train"][0].split(".")[-1]
+        elif "validation" in data_files and len(data_files["validation"]) > 0:
+            extension = data_files["validation"][0].split(".")[-1]
+        else:
+            raise ValueError(
+                "No valid training or validation files found to determine the extension."
+            )
+            
         if extension == "txt":
             extension = "text"
             dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
-        if extension == "csv":
-            extension = "json"
+            # For txt files, we need to process SMILES into graph data
+            from preprocess.mol3d_processor import smiles2GeoGraph
             
-        raw_datasets = load_dataset(
-            extension,
-            data_files=data_files,
-            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
-            **dataset_args,
-        )
+            def process_smiles_to_graph(example):
+                smiles = example['smiles']
+                graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
+                if graph_data is None:
+                    return None
+                return {
+                    'smiles': smiles,
+                    'x': graph_data.x.tolist(),
+                    'edge_index': graph_data.edge_index.tolist(),
+                    'edge_attr': graph_data.edge_attr.tolist(),
+                    'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist()
+                }
+            
+            # Load the text dataset first
+            raw_datasets = load_dataset(
+                extension,
+                data_files=data_files,
+                streaming=data_args.streaming,
+                cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+                **dataset_args,
+            )
+            
+            # Rename 'text' column to 'smiles'
+            raw_datasets = raw_datasets.rename_column('text', 'smiles')
+            
+            # Process SMILES to graph data
+            raw_datasets = raw_datasets.map(
+                process_smiles_to_graph,
+                remove_columns=raw_datasets["train"].column_names,
+                desc="Converting SMILES to graph data"
+            )
+            # Filter out None values (invalid SMILES)
+            raw_datasets = raw_datasets.filter(lambda x: x is not None)
+        elif extension == "csv":
+            # For CSV files, we need to process SMILES into graph data
+            from preprocess.mol3d_processor import smiles2GeoGraph
+            
+            def process_smiles_to_graph(example):
+                smiles = example['smiles']
+                graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
+                if graph_data is None:
+                    return None
+                # Create a new dict with graph data while preserving all other columns
+                result = {
+                    'smiles': smiles,
+                    'x': graph_data.x.tolist(),
+                    'edge_index': graph_data.edge_index.tolist(),
+                    'edge_attr': graph_data.edge_attr.tolist(),
+                    'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist()
+                }
+                # Preserve all other columns (including labels)
+                for key, value in example.items():
+                    if key not in result:
+                        result[key] = value
+                return result
+            
+            # Load the CSV dataset
+            raw_datasets = load_dataset(
+                "csv",
+                data_files=data_files,
+                streaming=data_args.streaming,
+                cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+                **dataset_args,
+            )
+            
+            # Process SMILES to graph data
+            raw_datasets = raw_datasets.map(
+                process_smiles_to_graph,
+                desc="Converting SMILES to graph data"
+            )
+            # Filter out None values (invalid SMILES)
+            raw_datasets = raw_datasets.filter(lambda x: x is not None)
+        else:
+            if extension == "jsonl": 
+                extension = "json"
+            raw_datasets = load_dataset(
+                extension,
+                data_files=data_files,
+                streaming=data_args.streaming,
+                cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+                **dataset_args,
+            )
         
         # If no validation data is there, validation_split_percentage will be used to divide the dataset.
         if "validation" not in raw_datasets.keys():
@@ -412,7 +494,6 @@ def main():
                 data_files=data_files,
                 split=f"train[:{data_args.validation_split_percentage}%]",
                 cache_dir=model_args.cache_dir,
-
                 **dataset_args,
             )
             raw_datasets["train"] = load_dataset(
@@ -708,18 +789,18 @@ def main():
             A dictionary with batched text tensors, graph data, and labels.
         """
         # Collect text data into batched tensors
-        
         smiles = [item["smiles"] for item in batch]
         tokenized = tokenizer(
-                    smiles,
-                    truncation=True,
-                    max_length=data_args.block_size,
-                    padding=True,
-                    return_tensors=None,
-                )
+            smiles,
+            truncation=True,
+            max_length=data_args.block_size,
+            padding=True,
+            return_tensors=None,
+        )
         input_ids = tokenized['input_ids']
         attention_mask = tokenized['attention_mask']
         
+        # Handle labels
         if isinstance(target_column_name, str):
             labels = torch.stack([torch.tensor(item[target_column_name]) for item in batch])
         elif isinstance(target_column_name, list):
@@ -730,30 +811,28 @@ def main():
                 ])
                 for item in batch
             ])
-            
-        # Collect graph data and batch them using PyTorch Geometric's Batch
-        if 'ba_edge_index' in batch[0].keys():
-            def convert_value(key, value):
-                if key in type_map:
-                    converter = type_map[key]
-                    if callable(converter):
-                        return converter(value)
-                    else:
-                        return torch.tensor(value, dtype=converter)
-                return value 
-            
-            batch_data = [
-                Data(**{key: convert_value(key, value) if isinstance(value, list) else value for key, value in data_dict.items()})
-                for data_dict in batch
-            ]
-            
-            graph_batch = TriBatch.from_data_list(batch_data)
+        
+        # Process graph data
+        def convert_value(key, value):
+            if key in type_map:
+                converter = type_map[key]
+                if callable(converter):
+                    return converter(value)
+                else:
+                    return torch.tensor(value, dtype=converter)
+            return value 
+        
+        batch_data = [
+            Data(**{key: convert_value(key, value) if isinstance(value, list) else value for key, value in data_dict.items()})
+            for data_dict in batch
+        ]
+        graph_batch = TriBatch.from_data_list(batch_data)
         
         return {
             "input_ids": torch.tensor(input_ids),
             "attention_mask": torch.tensor(attention_mask),
             "labels": labels,
-            "graph_data": graph_batch  # Batched graph data
+            "graph_data": graph_batch
         }
     
     # Initialize our Trainer

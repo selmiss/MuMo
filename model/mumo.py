@@ -13,6 +13,8 @@ from model.attention_mamba import AttentionMambaBlock
 from model.fusion_block import HierarchicalFusionBlock
 import torch.nn.init as init
 from transformers.modeling_outputs import ModelOutput
+from transformers.models.bert.modeling_bert import BertAttention
+from model.fusion_block import TransformerFusionBlock
 
 def reverse_seq_tensor(batch_seq):
     # Reverse the sequences along dimension 1 (seq_len)
@@ -37,7 +39,7 @@ class MuMoModel(MambaPreTrainedModel):
         )
         self.graph_layers = nn.ModuleList(
             [
-                HierarchicalFusionBlock(config, layer_idx=idx, global_inject=True)
+                HierarchicalFusionBlock(config, layer_idx=idx, global_inject=True, brics=config.brics, geo_operation=config.geo_operation)
                 for idx in range(config.num_hidden_layers // 2)
             ]
         )
@@ -96,6 +98,34 @@ class MuMoPretrain(MambaPreTrainedModel):
         super().__init__(config)
         self.layer_hidden_states = []
         self.backbone = MuMoModel(config=config)
+        self.to_logits = nn.Sequential(
+            nn.Linear(config.hidden_size, config.vocab_size),
+        )
+
+    def forward(
+        self,
+        input_ids,
+        attention_mask: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        graph_data: Optional[Data] = None,
+        **kwargs
+    ):
+        backbone_output = self.backbone(input_ids, attention_mask=attention_mask, graph_data=graph_data)
+        logits = self.to_logits(backbone_output[0])
+
+        loss = None
+        if labels is not None:
+            labels = labels.to(logits.device)
+            loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+            loss = loss_fct(logits.view(-1, self.config.vocab_size), labels.view(-1))
+
+        return {"logits": logits, "loss": loss}
+    
+class MuMoFormerPretrain(MambaPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.layer_hidden_states = []
+        self.backbone = TransformerMuMoModel(config=config)
         self.to_logits = nn.Sequential(
             nn.Linear(config.hidden_size, config.vocab_size),
         )
@@ -222,3 +252,96 @@ class MuMoFinetune(MambaPreTrainedModel):
                 
 
         return {"logits": logits, "loss": loss}
+
+class TransformerMuMoModel(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+
+        self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
+
+        # Replace input MambaBlock with FFN
+        self.input_ffn = nn.Sequential(
+            nn.Linear(config.hidden_size, config.intermediate_size),
+            nn.GELU(),
+            nn.Linear(config.intermediate_size, config.hidden_size)
+        )
+
+        # Replace AttentionMambaBlock with standard transformer blocks
+        self.layers = nn.ModuleList(
+            [
+                nn.Sequential(
+                    BertAttention(config),
+                    nn.Sequential(
+                        nn.Linear(config.hidden_size, config.intermediate_size),
+                        nn.GELU(),
+                        nn.Linear(config.intermediate_size, config.hidden_size)
+                    )
+                )
+                for idx in range(config.num_hidden_layers // 2)
+            ]
+        )
+
+        # Use TransformerFusionBlock instead of HierarchicalFusionBlock
+        self.graph_layers = nn.ModuleList(
+            [
+                TransformerFusionBlock(config, layer_idx=idx, global_inject=True, brics=config.brics, geo_operation=config.geo_operation)
+                for idx in range(config.num_hidden_layers // 2)
+            ]
+        )
+
+        # Replace MambaRMSNorm with LayerNorm
+        self.layer_norm = nn.LayerNorm(config.hidden_size)
+        self.final_norm = nn.LayerNorm(config.hidden_size)
+
+    def get_input_embeddings(self):
+        return self.embedding
+
+    def set_input_embeddings(self, new_embeddings):
+        self.embedding = new_embeddings
+
+    def forward(
+        self, 
+        input_ids, 
+        attention_mask: Optional[torch.LongTensor] = None, 
+        graph_data: Optional[Data] = None,
+        **kwargs
+    ):
+        embedding = self.embedding(input_ids)
+        all_hidden_states = []
+        all_attn_score = []
+        
+        hidden_states = embedding
+        
+        # Process through input FFN
+        hidden_states = self.input_ffn(hidden_states)
+        hidden_states = self.layer_norm(hidden_states)
+        
+        # Process through transformer layers
+        for layer in self.layers:
+            # Self attention
+            attention_output = layer[0](
+                hidden_states=hidden_states,
+                attention_mask=attention_mask[:, None, None, :]
+            )
+            hidden_states = attention_output[0] + hidden_states
+            
+            # FFN
+            ffn_output = layer[1](hidden_states)
+            hidden_states = ffn_output + hidden_states
+            
+            all_hidden_states.append(hidden_states)
+        
+        # Process through graph layers
+        for layer in self.graph_layers:
+            hidden_states, graph_data = layer(
+                hidden_states=hidden_states,
+                attention_mask=attention_mask,
+                graph_data=graph_data
+            )
+            all_hidden_states.append(hidden_states)
+
+        hidden_states = self.final_norm(hidden_states)
+        
+        all_hidden_states = torch.stack(all_hidden_states, dim=1)
+        
+        return (hidden_states, all_hidden_states, all_attn_score)

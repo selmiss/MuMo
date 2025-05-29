@@ -7,7 +7,7 @@ filename=$(basename "${BASH_SOURCE[0]}" .sh)
 # Base config
 output_model=${DATA_DIR}/model/pretrain/${filename}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
-MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls.json
+MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls_low.json
 
 # Keep this
 SCRIPT_PATH="$(realpath "$0")"
@@ -23,8 +23,8 @@ export CUDA_HOME=/usr/local/cuda/
 # export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
-MASTER_PORT=29501
-GPUs=1,2
+MASTER_PORT=29500
+GPUs=0
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
@@ -35,13 +35,13 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --output_dir ${output_model} \
     --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
-    --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
-    --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \
+    --train_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_demo.csv \
+    --validation_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_demo.csv \
     --preprocessing_num_workers 20 \
     --seed 42 \
     --ignore_data_skip true \
-    --per_device_train_batch_size 128 \
-    --per_device_eval_batch_size 128 \
+    --per_device_train_batch_size 12 \
+    --per_device_eval_batch_size 12 \
     --num_train_epochs 2 \
     --learning_rate 1e-4 \
     --lr_scheduler_type cosine \

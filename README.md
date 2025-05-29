@@ -45,7 +45,7 @@ conda install pytorch==2.5.1 torchvision torchaudio pytorch-cuda=12.4 -c pytorch
 # Install other requirements
 pip install -r requirements.txt
 
-If you want to get the traning and inference speed from mamba structure, you would like to install:
+# If you want to get the traning and inference speed from mamba structure, you would like to install:
 # Install causal-conv1d from source
 git clone https://github.com/Dao-AILab/causal-conv1d.git
 cd causal-conv1d
@@ -68,6 +68,7 @@ pip install torch==2.5.1+cu124 torchvision torchaudio --index-url https://downlo
 # Install other requirements
 pip install -r requirements.txt
 
+# If you want to get the traning and inference speed from mamba structure, you would like to install:
 # Install causal-conv1d from source
 git clone https://github.com/Dao-AILab/causal-conv1d.git
 cd causal-conv1d

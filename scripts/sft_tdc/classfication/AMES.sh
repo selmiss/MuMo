@@ -11,6 +11,7 @@ DATATYPE=tdc_geo_tox
 output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}
 BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
+MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls.json
 
 # Keep
 SCRIPT_PATH="$(realpath "$0")"
@@ -25,11 +26,12 @@ deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.p
     --model_class ${MODEL_CLASS} \
     --task_type classification \
     --model_name_or_path ${BASE_MODEL} \
+    --config_name ${MODEL_CONFIG} \
     --pool_method bipooler \
     --tokenizer_name ${BASE_MODEL} \
-    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.csv \
-    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.csv \
-    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.csv \
+    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.jsonl \
+    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.jsonl \
+    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.jsonl \
     --data_column_name smiles \
     --label_column_name Y \
     --per_device_train_batch_size 4 \

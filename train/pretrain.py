@@ -265,7 +265,6 @@ class CustomDataCollatorForLanguageAndGraph(DataCollatorForLanguageModeling):
         
         Args:
             tokenizer: Pretrained tokenizer for text data.
-            smiles2graph_data: Function to convert SMILES strings to graph data.
             max_length: Maximum sequence length for tokenized text.
             mlm: Whether to use Masked Language Modeling.
             mlm_probability: Masking probability for MLM.
@@ -429,16 +428,92 @@ def main():
     if extension == "txt":
         extension = "text"
         dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
-    if extension == "jsonl": extension = "json"
-
-
-    raw_datasets = load_dataset(
-        extension,
-        data_files=data_files,
-        streaming=data_args.streaming,
-        cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
-        **dataset_args,
-    )
+        # For txt files, we need to process SMILES into graph data
+        from preprocess.mol3d_processor import smiles2GeoGraph
+        
+        def process_smiles_to_graph(example):
+            smiles = example['smiles']
+            graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
+            if graph_data is None:
+                return None
+            
+            # Create a dictionary with basic features and cluster_idx
+            result = {
+                'smiles': smiles,
+                'x': graph_data.x.tolist(),
+                'edge_index': graph_data.edge_index.tolist(),
+                'edge_attr': graph_data.edge_attr.tolist(),
+                'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist()
+            }
+            return result
+        
+        # Load the text dataset first
+        raw_datasets = load_dataset(
+            extension,
+            data_files=data_files,
+            streaming=data_args.streaming,
+            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+            **dataset_args,
+        )
+        
+        # Rename 'text' column to 'smiles'
+        raw_datasets = raw_datasets.rename_column('text', 'smiles')
+        
+        # Process SMILES to graph data
+        raw_datasets = raw_datasets.map(
+            process_smiles_to_graph,
+            remove_columns=raw_datasets["train"].column_names,
+            desc="Converting SMILES to graph data"
+        )
+        # Filter out None values (invalid SMILES)
+        raw_datasets = raw_datasets.filter(lambda x: x is not None)
+    elif extension == "csv":
+        # For CSV files, we need to process SMILES into graph data
+        from preprocess.mol3d_processor import smiles2GeoGraph
+        
+        def process_smiles_to_graph(example):
+            smiles = example['smiles']
+            graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
+            if graph_data is None:
+                return None
+            
+            # Create a dictionary with all required features
+            result = {
+                'smiles': smiles,
+                'x': graph_data.x.tolist(),
+                'edge_index': graph_data.edge_index.tolist(),
+                'edge_attr': graph_data.edge_attr.tolist(),
+                'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist(),
+            }
+            return result
+        
+        # Load the CSV dataset
+        raw_datasets = load_dataset(
+            "csv",
+            data_files=data_files,
+            streaming=data_args.streaming,
+            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+            **dataset_args,
+        )
+        
+        # Process SMILES to graph data
+        raw_datasets = raw_datasets.map(
+            process_smiles_to_graph,
+            remove_columns=raw_datasets["train"].column_names,
+            desc="Converting SMILES to graph data"
+        )
+        # Filter out None values (invalid SMILES)
+        raw_datasets = raw_datasets.filter(lambda x: x is not None)
+    else:
+        if extension == "jsonl": 
+            extension = "json"
+        raw_datasets = load_dataset(
+            extension,
+            data_files=data_files,
+            streaming=data_args.streaming,
+            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+            **dataset_args,
+        )
 
 
     if data_args.streaming:

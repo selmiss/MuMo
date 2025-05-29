@@ -111,7 +111,7 @@ def build_bond_angle_graph(edge_index, node_i, node_j, node_k, bond_angles):
     graph['edge_index'] = np.array(ba_edge_index)
     return graph
       
-def smiles2GeoGraph(smiles: str, brics: bool = True, return_dict=False):
+def smiles2GeoGraph(smiles: str, brics: bool = True, geo_operation: bool = True, return_dict=False):
 
     # Get mol from smiles.
     mol = AllChem.MolFromSmiles(smiles)
@@ -126,19 +126,19 @@ def smiles2GeoGraph(smiles: str, brics: bool = True, return_dict=False):
     aba_graph.edge_attr = graph['edge_feat']
     aba_graph.x = graph['node_feat']
     
-    # Build Bond-Angle Graph
-    geo_data = mol_to_geognn_graph_data_MMFF3d(mol)
-    atom_pos = geo_data['atom_pos']
-    tn_edges_index = edge_transfer(graph['edge_index'])
-    node_i, node_j, node_k, bond_angles = \
-                get_pretrain_bond_angle(tn_edges_index, atom_pos)
-    ba_graph = build_bond_angle_graph(graph['edge_index'], node_i=node_i, node_j=node_j, node_k=node_k, bond_angles=bond_angles)
-    
-    # Merge 2 Graph into graph Data
-    aba_graph.__num_ba_nodes__ = int(ba_graph['num_nodes'])
-    aba_graph.ba_edge_index = ba_graph['edge_index']
-    aba_graph.ba_edge_attr = ba_graph['edge_feat']
-    # aba_graph.ba_x = ba_graph['node_feat'])
+    # Build Bond-Angle Graph only if geo_operation is True
+    if geo_operation:
+        geo_data = mol_to_geognn_graph_data_MMFF3d(mol)
+        atom_pos = geo_data['atom_pos']
+        tn_edges_index = edge_transfer(graph['edge_index'])
+        node_i, node_j, node_k, bond_angles = \
+                    get_pretrain_bond_angle(tn_edges_index, atom_pos)
+        ba_graph = build_bond_angle_graph(graph['edge_index'], node_i=node_i, node_j=node_j, node_k=node_k, bond_angles=bond_angles)
+        
+        # Merge 2 Graph into graph Data
+        aba_graph.__num_ba_nodes__ = int(ba_graph['num_nodes'])
+        aba_graph.ba_edge_index = ba_graph['edge_index']
+        aba_graph.ba_edge_attr = ba_graph['edge_feat']
     
     # Get BRICS A-B Graph
     if brics:
@@ -147,22 +147,20 @@ def smiles2GeoGraph(smiles: str, brics: bool = True, return_dict=False):
         aba_graph.fra_edge_attr = fra_edge_attr
         aba_graph.cluster_idx = cluster_idx
         
-        # Get BRICS B-A GeoGraph
-        tn_edges_index = edge_transfer(fra_edge_index)
-        node_i, node_j, node_k, bond_angles = \
-                    get_pretrain_bond_angle(tn_edges_index, atom_pos)
-        ba_graph = build_bond_angle_graph(fra_edge_index, node_i=node_i, node_j=node_j, node_k=node_k, bond_angles=bond_angles)
-        aba_graph.bafra_edge_index = ba_graph['edge_index']
-        aba_graph.bafra_edge_attr = ba_graph['edge_feat']
-        # aba_graph.bafra_x = ba_graph['node_feat'])
+        # Get BRICS B-A GeoGraph only if geo_operation is True
+        if geo_operation:
+            tn_edges_index = edge_transfer(fra_edge_index)
+            node_i, node_j, node_k, bond_angles = \
+                        get_pretrain_bond_angle(tn_edges_index, atom_pos)
+            ba_graph = build_bond_angle_graph(fra_edge_index, node_i=node_i, node_j=node_j, node_k=node_k, bond_angles=bond_angles)
+            aba_graph.bafra_edge_index = ba_graph['edge_index']
+            aba_graph.bafra_edge_attr = ba_graph['edge_feat']
         
     aba_graph.smiles = smiles
     if return_dict:
         batch_data = Data(**{key: torch.tensor(value) if isinstance(value, list) else value for key, value in aba_graph.items()})
         batch_data = Batch.from_data_list([batch_data])
-
         return aba_graph.to_dict()
-
 
     return aba_graph
 

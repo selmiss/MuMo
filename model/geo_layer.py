@@ -14,16 +14,18 @@ class GeoGraphLyaerMPNN(torch.nn.Module):
         if self.first_graph_embedder:
             self.lin_a = Linear(node_dim, hidden_channels)
             self.lin_b = Linear(edge_dim, hidden_channels)
-            self.lin_c = Linear(angle_dim, hidden_channels)
+            
             
         self.lin_gate = Linear(3 * hidden_channels, hidden_channels)
-        self.geo_gate = Linear(3 * hidden_channels, hidden_channels)
+        
         if self.brics:
             self.fusion_gate = Linear(2 * hidden_channels, hidden_channels)
             
         self.graph_conv = MPNN(hidden_channels, hidden_channels, hidden_channels)
         if self.geo_operation:
             self.geo_conv = MPNN(hidden_channels, hidden_channels, hidden_channels)
+            self.geo_gate = Linear(3 * hidden_channels, hidden_channels)
+            self.lin_c = Linear(angle_dim, hidden_channels)
         
     def forward(self, data):
         
