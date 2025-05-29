@@ -1,59 +1,36 @@
-BASE_DIR=xxx # Change to your project dir
-DATA_DIR=xxx/model # Change to your data file dir
+BASE_DIR=/home/UWO/zjing29/Mams/MuMo # Change to your project dir
+DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=mumo
 MODEL_CLASS=MuMoFinetune
 CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 # Base config
-output_model=xxx/model/sft/mumo/dk_test
-BASE_MODEL=xxx/model/sft/mumo/dk
-DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
+output_dir=/data/lab_ph/zihao/Nips/model/sft/mumo/dk_test
+BASE_MODEL=/data/lab_ph/zihao/Nips/model/sft/ma-mamba/ma-mamba_MA_MambaFinetune_sft_tdc_geo-HydrationFreeEnergy_FreeSolv
 
 # Keep
 SCRIPT_PATH="$(realpath "$0")"
-if [ ! -d ${output_model} ];then  
-    mkdir ${output_model}
+if [ ! -d ${output_dir} ];then  
+    mkdir ${output_dir}
 fi
-cp ${SCRIPT_PATH} ${output_model}
-cp ${DS_CONFIG} ${output_model}
+cp ${SCRIPT_PATH} ${output_dir}
 
 # Runner
-# deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/inference.py \
 CUDA_VISIBLE_DEVICES=0 python ${BASE_DIR}/train/inference.py \
     --model_name_or_path ${BASE_MODEL} \
-    --config_name ${CONFIG_NAME} \
-    --test_files xxx/Nips/dataset/dk/final_5.csv \
-    --data_column_name smiles \
-    --label_column_name label \
-    --normlization True \
-    --per_device_train_batch_size 1 \
-    --per_device_eval_batch_size 1 \
-    --train_on_inputs True \
-    --model_class ${MODEL_CLASS} \
+    --model_class MuMoFinetune \
     --task_type regression \
+    --cache_dir ${BASE_DIR}/cache \
+    --model_revision main \
     --use_fast_tokenizer false \
-    --output_dir ${output_model} \
-    --max_eval_samples 1000 \
-    --frozen_layer -2 \
-    --learning_rate 1e-5 \
-    --lr_scheduler_type linear \
-    --gradient_accumulation_steps 1 \
-    --num_train_epochs 10 \
-    --warmup_steps 50 \
-    --logging_dir ${output_model}/logs \
-    --logging_strategy steps \
-    --logging_steps 20 \
-    --save_strategy no \
-    --preprocessing_num_workers 10 \
-    --evaluation_strategy no \
-    --eval_steps 100 \
-    --seed 42 \
-    --disable_tqdm false \
-    --block_size 1024 \
-    --report_to tensorboard \
-    --overwrite_output_dir \
-    --ignore_data_skip true \
-    --bf16 False \
     --torch_dtype float32 \
-    | tee -a ${output_model}/train.log
+    --output_size 1 \
+    --pool_method mean \
+    --test_files /data/lab_ph/zihao/Nips/dataset/dk/final_5.csv \
+    --data_column_name smiles \
+    --output_dir ${output_dir} \
+    --batch_size 2 \
+    --max_length 1024 \
+    --scaler_path /data/lab_ph/zihao/Nips/dataset/dk/scaler.pkl \
+    | tee -a ${output_dir}/inference.log

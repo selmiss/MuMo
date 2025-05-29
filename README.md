@@ -35,15 +35,73 @@ To ensure reproducibility, we provide a list of required dependencies.
 ### **Using Conda (Recommended)**
 
 ```bash
+# Create and activate conda environment
 conda create -n mumo python=3.11
 conda activate mumo
+
+# Install PyTorch with CUDA support
+conda install pytorch==2.5.1 torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
+
+# Install other requirements
 pip install -r requirements.txt
+
+If you want to get the traning and inference speed from mamba structure, you would like to install:
+# Install causal-conv1d from source
+git clone https://github.com/Dao-AILab/causal-conv1d.git
+cd causal-conv1d
+pip install -e .
+cd ..
+
+# Install mamba from source
+git clone https://github.com/state-spaces/mamba.git
+cd mamba
+pip install -e .
+cd ..
 ```
 
 ### **Using pip**
 
 ```bash
+# Install PyTorch with CUDA support
+pip install torch==2.5.1+cu124 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+# Install other requirements
 pip install -r requirements.txt
+
+# Install causal-conv1d from source
+git clone https://github.com/Dao-AILab/causal-conv1d.git
+cd causal-conv1d
+pip install -e .
+cd ..
+
+# Install mamba from source
+git clone https://github.com/state-spaces/mamba.git
+cd mamba
+pip install -e .
+cd ..
+```
+
+Note: Make sure you have CUDA 12.4 installed on your system. If you're using a different CUDA version, you'll need to adjust the PyTorch installation command accordingly.
+
+## Installation
+
+1. First, install the required packages:
+```bash
+pip install -r requirements.txt
+```
+
+2. Install causal-conv1d from source:
+```bash
+git clone https://github.com/Dao-AILab/causal-conv1d.git
+cd causal-conv1d
+pip install -e .
+```
+
+3. Install mamba from source:
+```bash
+git clone https://github.com/state-spaces/mamba.git
+cd mamba
+pip install -e .
 ```
 
 ---
