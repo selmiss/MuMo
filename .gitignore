@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# External repos
+causal-conv1d/
+mamba/
+
 # C extensions
 *.so
 

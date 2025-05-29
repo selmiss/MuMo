@@ -3,7 +3,7 @@ DATA_DIR=xxx/model # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=mumo
 MODEL_CLASS=MuMoFinetune
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 # Base config
 output_model=xxx/model/sft/mumo/dk_test

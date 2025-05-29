@@ -1,5 +1,5 @@
-BASE_DIR=xxx # Change to your project dir
-DATA_DIR=xxx # Change to your data file dir
+BASE_DIR=/home/UWO/zjing29/Mams/MuMo # Change to your project dir
+DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
 
 export PYTHONPATH=${BASE_DIR}
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
@@ -7,7 +7,7 @@ filename=$(basename "${BASH_SOURCE[0]}" .sh)
 # Base config
 output_model=${DATA_DIR}/model/pretrain/${filename}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
-MODEL_CONFIG=${BASE_DIR}/config/mamba/config_cls.json
+MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls.json
 
 # Keep this
 SCRIPT_PATH="$(realpath "$0")"
@@ -20,11 +20,11 @@ cp ${MODEL_CONFIG} ${output_model}/config.json
 cp ${BASE_DIR}/train/pretrain.py ${output_model}
 
 export CUDA_HOME=/usr/local/cuda/
-export NCCL_P2P_DISABLE=1
+# export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
 MASTER_PORT=29500
-GPUs=0,1,2,3
+GPUs=0,6
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
@@ -35,8 +35,8 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --output_dir ${output_model} \
     --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
-    --train_files ${DATA_DIR}/dataset/pretrain/geo_data/chembl_train_dict.jsonl \
-    --validation_files ${DATA_DIR}/dataset/pretrain/geo_data/chembl_eval_dict.jsonl \
+    --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
+    --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \
     --preprocessing_num_workers 20 \
     --seed 42 \
     --ignore_data_skip true \

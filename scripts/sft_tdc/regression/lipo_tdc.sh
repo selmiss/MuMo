@@ -5,7 +5,7 @@ MODEL_NAME=mumo
 TASK_NAME=Bioavailability_Ma
 MODEL_CLASS=MuMoFinetune
 DATATYPE=sft_tdc_geo
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 
 # Base config

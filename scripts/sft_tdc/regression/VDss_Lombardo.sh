@@ -1,11 +1,11 @@
-BASE_DIR=xxx # Change to your project dir
-DATA_DIR=xxx/Nips # Change to your data file dir
+BASE_DIR=/root/MuMo
+DATA_DIR=/root/autodl-tmp
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=mumo
-TASK_NAME=HydrationFreeEnergy_FreeSolv
+TASK_NAME=VDss_Lombardo
 MODEL_CLASS=MuMoFinetune
 DATATYPE=sft_tdc_geo
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 
 # Base config
@@ -31,22 +31,22 @@ deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.p
     --data_column_name smiles \
     --label_column_name Y \
     --normlization True \
+    --per_device_train_batch_size 10 \
+    --per_device_eval_batch_size 10 \
+    --train_on_inputs True \
     --model_class ${MODEL_CLASS} \
     --task_type regression \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 8 \
-    --train_on_inputs True \
     --do_train \
     --do_eval \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
     --max_eval_samples 1000 \
     --frozen_layer -2 \
-    --learning_rate 1e-5 \
+    --learning_rate 3e-5 \
     --lr_scheduler_type linear \
     --gradient_accumulation_steps 1 \
-    --num_train_epochs 60 \
-    --warmup_steps 50 \
+    --num_train_epochs 15 \
+    --warmup_steps 10 \
     --logging_dir ${output_model}/logs \
     --logging_strategy steps \
     --logging_steps 20 \

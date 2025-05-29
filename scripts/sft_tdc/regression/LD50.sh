@@ -2,10 +2,10 @@ BASE_DIR=/root/MA-Mamba
 DATA_DIR=/root/autodl-tmp
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=mumo
-TASK_NAME=Solubility_AqSolDB
+TASK_NAME=LD50_Zhu
 MODEL_CLASS=MuMoFinetune
-DATATYPE=sft_tdc_geo
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+DATATYPE=tdc_geo_tox
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 
 # Base config
@@ -31,8 +31,8 @@ deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --data_column_name smiles \
     --label_column_name Y \
     --normlization True \
-    --per_device_train_batch_size 10 \
-    --per_device_eval_batch_size 10 \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 8 \
     --train_on_inputs True \
     --model_class ${MODEL_CLASS} \
     --task_type regression \
@@ -45,7 +45,7 @@ deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --learning_rate 3e-5 \
     --lr_scheduler_type linear \
     --gradient_accumulation_steps 1 \
-    --num_train_epochs 15 \
+    --num_train_epochs 10 \
     --warmup_steps 10 \
     --logging_dir ${output_model}/logs \
     --logging_strategy steps \

@@ -2,10 +2,11 @@ BASE_DIR=xxx # Change to your project dir
 DATA_DIR=xxx # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=$1
-TASK_NAME=lipo
+TASK_NAME=delaney
 DATATYPE=$5
 MODEL_CLASS=$4
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
+
 for i in {1..3}
 do
     echo $i
@@ -25,31 +26,29 @@ do
     # Runner
     deepspeed --master_port $2 --include localhost:$3 ${BASE_DIR}/train/finetune.py \
         --model_name_or_path ${BASE_MODEL} \
-        --fp_tokenizer_path ${fp_tokenizer_path} \
         --config_name ${CONFIG_NAME} \
-        --functional_group False \
         --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.csv \
-        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
+        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.csv \
         --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
         --data_column_name smiles \
-        --label_column_name lipo \
+        --label_column_name logSolubility \
         --normlization True \
+        --per_device_train_batch_size 4 \
+        --per_device_eval_batch_size 4 \
+        --train_on_inputs True \
         --model_class ${MODEL_CLASS} \
         --task_type regression \
-        --per_device_train_batch_size 10 \
-        --per_device_eval_batch_size 10 \
-        --train_on_inputs True \
         --do_train \
         --do_eval \
         --use_fast_tokenizer false \
         --output_dir ${output_model} \
         --max_eval_samples 1000 \
         --frozen_layer -2 \
-        --learning_rate 3e-5 \
+        --learning_rate 1e-5 \
         --lr_scheduler_type linear \
         --gradient_accumulation_steps 1 \
-        --num_train_epochs 20 \
-        --warmup_steps 10 \
+        --num_train_epochs 10 \
+        --warmup_steps 50 \
         --logging_dir ${output_model}/logs \
         --logging_strategy steps \
         --logging_steps 20 \

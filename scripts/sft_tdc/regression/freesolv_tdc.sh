@@ -1,11 +1,11 @@
 BASE_DIR=xxx # Change to your project dir
-DATA_DIR=xxx # Change to your data file dir
+DATA_DIR=xxx/Nips # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=mumo
-TASK_NAME=Caco2_Wang
+TASK_NAME=HydrationFreeEnergy_FreeSolv
 MODEL_CLASS=MuMoFinetune
 DATATYPE=sft_tdc_geo
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 
 # Base config
@@ -31,11 +31,11 @@ deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.p
     --data_column_name smiles \
     --label_column_name Y \
     --normlization True \
-    --per_device_train_batch_size 4 \
-    --per_device_eval_batch_size 4 \
-    --train_on_inputs True \
     --model_class ${MODEL_CLASS} \
     --task_type regression \
+    --per_device_train_batch_size 8 \
+    --per_device_eval_batch_size 8 \
+    --train_on_inputs True \
     --do_train \
     --do_eval \
     --use_fast_tokenizer false \
@@ -45,7 +45,7 @@ deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.p
     --learning_rate 1e-5 \
     --lr_scheduler_type linear \
     --gradient_accumulation_steps 1 \
-    --num_train_epochs 10 \
+    --num_train_epochs 60 \
     --warmup_steps 50 \
     --logging_dir ${output_model}/logs \
     --logging_strategy steps \

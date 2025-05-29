@@ -1,11 +1,11 @@
-BASE_DIR=/root/MuMo
+BASE_DIR=/root/MA-Mamba
 DATA_DIR=/root/autodl-tmp
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=mumo
-TASK_NAME=VDss_Lombardo
+TASK_NAME=Solubility_AqSolDB
 MODEL_CLASS=MuMoFinetune
 DATATYPE=sft_tdc_geo
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 
 # Base config
@@ -22,7 +22,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.py \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
     --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.csv \

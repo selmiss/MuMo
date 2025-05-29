@@ -1,11 +1,11 @@
-BASE_DIR=/root/MA-Mamba
-DATA_DIR=/root/autodl-tmp
+BASE_DIR=xxx # Change to your project dir
+DATA_DIR=xxx # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=mumo
-TASK_NAME=LD50_Zhu
+TASK_NAME=Caco2_Wang
 MODEL_CLASS=MuMoFinetune
-DATATYPE=tdc_geo_tox
-CONFIG_NAME=${BASE_DIR}/config/mamba/config_cls_reg.json
+DATATYPE=sft_tdc_geo
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 
 # Base config
@@ -22,7 +22,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.py \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
     --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.csv \
@@ -31,8 +31,8 @@ deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --data_column_name smiles \
     --label_column_name Y \
     --normlization True \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 8 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
     --train_on_inputs True \
     --model_class ${MODEL_CLASS} \
     --task_type regression \
@@ -42,11 +42,11 @@ deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --output_dir ${output_model} \
     --max_eval_samples 1000 \
     --frozen_layer -2 \
-    --learning_rate 3e-5 \
+    --learning_rate 1e-5 \
     --lr_scheduler_type linear \
     --gradient_accumulation_steps 1 \
     --num_train_epochs 10 \
-    --warmup_steps 10 \
+    --warmup_steps 50 \
     --logging_dir ${output_model}/logs \
     --logging_strategy steps \
     --logging_steps 20 \
