@@ -23,7 +23,7 @@ export CUDA_HOME=/usr/local/cuda/
 # export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
-MASTER_PORT=29501
+MASTER_PORT=29500
 GPUs=1,2
 
 # Runner

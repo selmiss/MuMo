@@ -26,7 +26,8 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
 from graph_batch import TriBatch
-    
+import tempfile
+
 logger = logging.getLogger(__name__)
 
 
@@ -388,6 +389,44 @@ def main():
             )
     ### End Load logging
 
+    ### Start Load tokenizer and config
+    config_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+    if model_args.config_name:
+        config = AutoConfig.from_pretrained(model_args.config_name, **config_kwargs)
+    elif model_args.model_name_or_path:
+        config = AutoConfig.from_pretrained(
+            model_args.model_name_or_path, **config_kwargs
+        )
+    else:
+        raise ValueError("You need to specify the model config.")
+
+    print(training_args.local_rank, "start load tokenizer")
+    tokenizer_kwargs = {
+        "cache_dir": model_args.cache_dir,
+        "use_fast": model_args.use_fast_tokenizer,
+        "revision": model_args.model_revision,
+        "use_auth_token": True if model_args.use_auth_token else None,
+    }
+    if model_args.tokenizer_name:
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_args.tokenizer_name, **tokenizer_kwargs
+        )
+    elif model_args.model_name_or_path:
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_args.model_name_or_path, **tokenizer_kwargs
+        )
+    else:
+        raise ValueError(
+            "You are instantiating a new tokenizer from scratch. This is not supported by this script."
+        )
+
+    print(training_args.local_rank, "end load tokenizer")
+    ### End Load tokenizer and config
+
     ### Start Load Data Files
     set_seed(training_args.seed)
     data_files = {}
@@ -428,26 +467,6 @@ def main():
     if extension == "txt":
         extension = "text"
         dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
-        # For txt files, we need to process SMILES into graph data
-        from preprocess.mol3d_processor import smiles2GeoGraph
-        
-        def process_smiles_to_graph(example):
-            smiles = example['smiles']
-            graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
-            if graph_data is None:
-                return None
-            
-            # Create a dictionary with basic features and cluster_idx
-            result = {
-                'smiles': smiles,
-                'x': graph_data.x.tolist(),
-                'edge_index': graph_data.edge_index.tolist(),
-                'edge_attr': graph_data.edge_attr.tolist(),
-                'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist()
-            }
-            return result
-        
-        # Load the text dataset first
         raw_datasets = load_dataset(
             extension,
             data_files=data_files,
@@ -455,39 +474,7 @@ def main():
             cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
             **dataset_args,
         )
-        
-        # Rename 'text' column to 'smiles'
-        raw_datasets = raw_datasets.rename_column('text', 'smiles')
-        
-        # Process SMILES to graph data
-        raw_datasets = raw_datasets.map(
-            process_smiles_to_graph,
-            remove_columns=raw_datasets["train"].column_names,
-            desc="Converting SMILES to graph data"
-        )
-        # Filter out None values (invalid SMILES)
-        raw_datasets = raw_datasets.filter(lambda x: x is not None)
     elif extension == "csv":
-        # For CSV files, we need to process SMILES into graph data
-        from preprocess.mol3d_processor import smiles2GeoGraph
-        
-        def process_smiles_to_graph(example):
-            smiles = example['smiles']
-            graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
-            if graph_data is None:
-                return None
-            
-            # Create a dictionary with all required features
-            result = {
-                'smiles': smiles,
-                'x': graph_data.x.tolist(),
-                'edge_index': graph_data.edge_index.tolist(),
-                'edge_attr': graph_data.edge_attr.tolist(),
-                'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist(),
-            }
-            return result
-        
-        # Load the CSV dataset
         raw_datasets = load_dataset(
             "csv",
             data_files=data_files,
@@ -495,15 +482,6 @@ def main():
             cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
             **dataset_args,
         )
-        
-        # Process SMILES to graph data
-        raw_datasets = raw_datasets.map(
-            process_smiles_to_graph,
-            remove_columns=raw_datasets["train"].column_names,
-            desc="Converting SMILES to graph data"
-        )
-        # Filter out None values (invalid SMILES)
-        raw_datasets = raw_datasets.filter(lambda x: x is not None)
     else:
         if extension == "jsonl": 
             extension = "json"
@@ -515,10 +493,53 @@ def main():
             **dataset_args,
         )
 
-
     if data_args.streaming:
         raw_datasets = raw_datasets.shuffle(
             seed=training_args.seed, buffer_size=1000000
+        )
+
+    # Process SMILES to graph data
+    from preprocess.mol3d_processor import smiles2GeoGraph
+    import torch
+
+    def process_smiles_to_graph(example):
+        # For JSONL files, we don't need to process the SMILES
+        if extension == "jsonl":
+            return example
+            
+        smiles = example['smiles']
+        graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
+        if graph_data is None:
+            return None
+        # Create a new dict with graph data while preserving all other columns
+        result = {
+            'smiles': smiles,
+            'x': graph_data.x.tolist(),
+            'edge_index': graph_data.edge_index.tolist(),
+            'edge_attr': graph_data.edge_attr.tolist(),
+            'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist()
+        }
+        # Preserve all other columns
+        for key, value in example.items():
+            if key not in result:
+                result[key] = value
+        return result
+
+    # Process the datasets
+    if training_args.do_train:
+        raw_datasets["train"] = raw_datasets["train"].map(
+            process_smiles_to_graph,
+            num_proc=data_args.preprocessing_num_workers,
+            remove_columns=raw_datasets["train"].column_names,
+            desc="Processing train dataset"
+        )
+    
+    if training_args.do_eval:
+        raw_datasets["validation"] = raw_datasets["validation"].map(
+            process_smiles_to_graph,
+            num_proc=data_args.preprocessing_num_workers,
+            remove_columns=raw_datasets["validation"].column_names,
+            desc="Processing validation dataset"
         )
 
     # If no validation data is there, validation_split_percentage will be used to divide the dataset.
@@ -538,45 +559,6 @@ def main():
             **dataset_args,
         )
     ### End Load Data Files
-
-    ### Start Load tokenizer
-    config_kwargs = {
-        "cache_dir": model_args.cache_dir,
-        "revision": model_args.model_revision,
-        "use_auth_token": True if model_args.use_auth_token else None,
-    }
-    if model_args.config_name:
-        config = AutoConfig.from_pretrained(model_args.config_name, **config_kwargs)
-    elif model_args.model_name_or_path:
-        config = AutoConfig.from_pretrained(
-            model_args.model_name_or_path, **config_kwargs
-        )
-    else:
-        raise ValueError("You need to specify the model config.")
-
-    print(training_args.local_rank, "start load tokenizer")
-    tokenizer_kwargs = {
-        "cache_dir": model_args.cache_dir,
-        "use_fast": model_args.use_fast_tokenizer,
-        "revision": model_args.model_revision,
-        "use_auth_token": True if model_args.use_auth_token else None,
-    }
-    if model_args.tokenizer_name:
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_args.tokenizer_name, **tokenizer_kwargs
-        )
-    elif model_args.model_name_or_path:
-        tokenizer = AutoTokenizer.from_pretrained(
-            model_args.model_name_or_path, **tokenizer_kwargs
-        )
-    else:
-        raise ValueError(
-            "You are instantiating a new tokenizer from scratch. This is not supported by this script."
-        )
-
-        
-    print(training_args.local_rank, "end load tokenizer")
-    ### End Load tokenizer
 
     ### Start Load Model
     from model.load_model import load_model, initialize_weights

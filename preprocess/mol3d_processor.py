@@ -10,11 +10,12 @@ from sklearn.metrics import pairwise_distances
 from torch_geometric.data import Data, Batch
 from preprocess.brics import bond_break
 import pandas as pd
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor
 import torch
 from concurrent.futures import TimeoutError
+import sys
 
 
 def get_pretrain_bond_angle(edges, atom_poses):
@@ -191,14 +192,16 @@ def preprocess_geo_dataset(input_path: str, output_path: str):
     print(f"Saved {len(graphs)} graph-data objects to {output_path}")
 
 def process_smiles_to_graph_wrapper(args):
-    idx, smiles = args
+    idx, smiles, brics, geo_operation = args
     try:
-        return idx, smiles2GeoGraph(smiles=smiles, return_dict=True)
+        return idx, smiles2GeoGraph(smiles=smiles, brics=brics, geo_operation=geo_operation, return_dict=True)
     except Exception as e:
         print(str(e))
         return idx, None
      
-def process_dataset_and_save_multithreaded(csv_file, output_file, num_workers=4):
+def process_dataset_and_save_multithreaded(csv_file, output_file, num_workers=4, brics=True, geo_operation=True):
+    print(f"Starting processing with {num_workers} workers")
+    print(f"Reading CSV file: {csv_file}")
     df = pd.read_csv(csv_file)
     smiles_column = 'smiles'
     if 'smiles' not in df.columns:
@@ -206,25 +209,44 @@ def process_dataset_and_save_multithreaded(csv_file, output_file, num_workers=4)
         if 'mol' not in df.columns:
             raise ValueError("The CSV file must contain a 'smiles' or 'mol' column.")
     
+    print(f"Found {len(df)} SMILES to process")
     smiles_list = list(enumerate(df[smiles_column]))
+    # Add brics and geo_operation parameters to each item in the list
+    smiles_list = [(idx, smiles, brics, geo_operation) for idx, smiles in smiles_list]
     metadata = df.drop(columns=[smiles_column])
     results = [None] * len(df)
 
+    print("Starting parallel processing...")
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        for idx, graph in tqdm(executor.map(process_smiles_to_graph_wrapper, smiles_list), total=len(df), desc="Processing SMILES"):
+        futures = [executor.submit(process_smiles_to_graph_wrapper, item) for item in smiles_list]
+        pbar = tqdm(total=len(smiles_list), desc="Processing SMILES", 
+                   bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}',
+                   file=sys.stdout)
+        for future in futures:
+            idx, graph = future.result()
             if graph is not None:
                 graph.update(metadata.iloc[idx].to_dict())
             results[idx] = graph
+            pbar.update(1)
+        pbar.close()
 
     graphs = [g for g in results if g is not None]
+    print(f"Successfully processed {len(graphs)} out of {len(df)} SMILES")
+    
+    print(f"Writing results to {output_file}")
     with open(output_file, "w") as f:
-        for row in tqdm(graphs):
+        pbar = tqdm(total=len(graphs), desc="Writing to JSONL",
+                   bar_format='{l_bar}{bar:50}{r_bar}{bar:-10b}',
+                   file=sys.stdout)
+        for row in graphs:
             for key, value in row.items():
                 if isinstance(value, np.ndarray) or isinstance(value, torch.Tensor):
                     row[key] = value.tolist()
 
             json.dump(row, f)
             f.write("\n")
+            pbar.update(1)
+        pbar.close()
     
     print(f"Saved {len(graphs)} graph-data objects to {output_file}")
 
@@ -443,8 +465,8 @@ def merge_geotest_dataset_dir(input_root, output_root):
         print(f"Error writing merged JSONL file: {e}")
 
 if __name__ == "__main__":
-    data_path = "your_data_dir/dataset/ZINC/ZINC_250k.csv"
-    output_path = "your_data_dir/dataset/pretrain/geo_data/zinc_train_eval.pt"
+    data_path = "/data/lab_ph/zihao/dataset/ZINC/ZINC_250k.csv"
+    output_path = "/data/lab_ph/zihao/dataset/pretrain/geo_data/zinc_train_eval.pt"
     process_dataset_and_save_multithreaded(data_path, output_path, num_workers=20)
     
     # transfer_data(input_path=output_path, output_path="your_data_dir/dataset/pretrain/geo_data/chembl_train_dict.jsonl")

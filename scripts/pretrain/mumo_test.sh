@@ -23,8 +23,8 @@ export CUDA_HOME=/usr/local/cuda/
 # export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
-MASTER_PORT=29500
-GPUs=0
+MASTER_PORT=29501
+GPUs=3,4
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
@@ -35,13 +35,13 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --output_dir ${output_model} \
     --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
-    --train_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_demo.csv \
-    --validation_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_demo.csv \
+    --train_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_train.csv \
+    --validation_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_eval.csv \
     --preprocessing_num_workers 20 \
     --seed 42 \
     --ignore_data_skip true \
-    --per_device_train_batch_size 12 \
-    --per_device_eval_batch_size 12 \
+    --per_device_train_batch_size 128 \
+    --per_device_eval_batch_size 128 \
     --num_train_epochs 2 \
     --learning_rate 1e-4 \
     --lr_scheduler_type cosine \
