@@ -3,19 +3,18 @@
 
 export PYTHONPATH=${BASE_DIR}
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
-
-# Base config
 output_model=${DATA_DIR}/model/pretrain/${filename}
 
 export WANDB_PROJECT="NeurIPS_Rebuttal"
 export WANDB_DIR="${output_model}/wandb"
 
+# Base config
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
-MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls.json
+MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls_no_self_attn.json
 
 # Keep this
 SCRIPT_PATH="$(realpath "$0")"
-if [ ! -d ${output_model} ];then  
+if [ ! -d ${output_model} ];then
     mkdir ${output_model}
 fi
 cp ${SCRIPT_PATH} ${output_model}
@@ -24,25 +23,24 @@ cp ${MODEL_CONFIG} ${output_model}/config.json
 cp ${BASE_DIR}/train/pretrain.py ${output_model}
 
 export CUDA_HOME=/usr/local/cuda/
-# export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
-MASTER_PORT=29500
-GPUs=6,7
+MASTER_PORT=29501
+GPUs=0,1
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
     --run_name ${filename} \
     --config_name ${MODEL_CONFIG} \
     --tokenizer_name ${BASE_DIR}/smiles_tokenizer/mumo_tokenizer \
-    --max_grad_norm 1.0 \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
-    --model_class MuMoFormerPretrain \
+    --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
     --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
     --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \
     --preprocessing_num_workers 20 \
+    --max_grad_norm 1.0 \
     --seed 42 \
     --ignore_data_skip true \
     --per_device_train_batch_size 128 \

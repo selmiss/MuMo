@@ -399,8 +399,8 @@ def main():
             )
 
         # --- Debugging --hard code here ------------------------------------------------------------
-        if extension == "csv":
-            extension = "jsonl"
+        # if extension == "csv":
+        #     extension = "jsonl"
         # --- Debugging --hard code here ------------------------------------------------------------   
             
         if extension == "txt":

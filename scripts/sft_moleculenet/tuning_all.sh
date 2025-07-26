@@ -1,4 +1,4 @@
-BASE_DIR=xxx # Change to your project dir
+: "${BASE_DIR:?Environment variable BASE_DIR not set}"
 
 export PYTHONPATH=${BASE_DIR}
 MODEL_NAME=$1
@@ -12,15 +12,15 @@ DATA_TYPE=$4
 IFS=',' read -ra TASK_ARRAY <<< "$TASKS"
 
 declare -A TASK_SCRIPTS=(
-  ["bace"]="${BASE_DIR}/scripts/sft/classfication/bace.sh"
-  ["bbbp"]="${BASE_DIR}/scripts/sft/classfication/bbbp.sh"
-  ["clintox"]="${BASE_DIR}/scripts/sft/classfication/clintox.sh"
-  ["hiv"]="${BASE_DIR}/scripts/sft/classfication/hiv.sh"
-  ["lipo"]="${BASE_DIR}/scripts/sft/regression/lipo.sh"
-  ["delaney"]="${BASE_DIR}/scripts/sft/regression/delaney.sh"
-  ["freesolv"]="${BASE_DIR}/scripts/sft/regression/freesolv.sh"
-  ["sider"]="${BASE_DIR}/scripts/sft/classfication/sider.sh"
-  ["tox21"]="${BASE_DIR}/scripts/sft/classfication/tox21.sh"
+  ["bace"]="${BASE_DIR}/scripts/sft_moleculenet/classfication/bace.sh"
+  ["bbbp"]="${BASE_DIR}/scripts/sft_moleculenet/classfication/bbbp.sh"
+  ["clintox"]="${BASE_DIR}/scripts/sft_moleculenet/classfication/clintox.sh"
+  ["hiv"]="${BASE_DIR}/scripts/sft_moleculenet/classfication/hiv.sh"
+  ["lipo"]="${BASE_DIR}/scripts/sft_moleculenet/regression/lipo.sh"
+  ["delaney"]="${BASE_DIR}/scripts/sft_moleculenet/regression/delaney.sh"
+  ["freesolv"]="${BASE_DIR}/scripts/sft_moleculenet/regression/freesolv.sh"
+  ["sider"]="${BASE_DIR}/scripts/sft_moleculenet/classfication/sider.sh"
+  ["tox21"]="${BASE_DIR}/scripts/sft_moleculenet/classfication/tox21.sh"
 )
 
 

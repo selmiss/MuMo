@@ -9,8 +9,8 @@ from typing import Optional
 from torch import nn
 from torch_geometric.data import Data
 from torch_geometric.nn import global_add_pool
-from model.attention_mamba import AttentionMambaBlock
-from model.fusion_block import HierarchicalFusionBlock
+from model.attention_mamba import AttentionMambaBlock, MambaBlock_without_self_attention
+from model.fusion_block import HierarchicalFusionBlock, HierarchicalFusionBlock_without_self_attention
 import torch.nn.init as init
 from transformers.modeling_outputs import ModelOutput
 from transformers.models.bert.modeling_bert import BertAttention
@@ -92,12 +92,87 @@ class MuMoModel(MambaPreTrainedModel):
         
         return (hidden_states, all_hidden_states, all_attn_score, graph_data)
 
+
+class MuMoModel_without_self_attention(MambaPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
+
+        self.input_mamba = MambaBlock(config, layer_idx=-1)
+
+        self.layers = nn.ModuleList(
+            [
+                MambaBlock_without_self_attention(config, layer_idx=idx)
+                for idx in range(config.num_hidden_layers // 2)
+            ]
+        )
+        self.graph_layers = nn.ModuleList(
+            [
+                HierarchicalFusionBlock_without_self_attention(config, layer_idx=idx, global_inject=True, brics=config.brics, geo_operation=config.geo_operation)
+                for idx in range(config.num_hidden_layers // 2)
+            ]
+        )
+        self.layer_norm = MambaRMSNorm(config.hidden_size)
+        self.final_norm = MambaRMSNorm(config.hidden_size)
+
+    def get_input_embeddings(self):
+        return self.embedding
+
+    def set_input_embeddings(self, new_embeddings):
+        self.embedding = new_embeddings
+
+    def forward(
+        self, 
+        input_ids, 
+        attention_mask: Optional[torch.LongTensor] = None, 
+        graph_data: Optional[Data] = None,
+        **kwargs
+    ):
+
+        embedding = self.embedding(input_ids)
+        all_hidden_states = []
+        all_attn_score = []
+        
+        hidden_states = embedding
+        
+        hidden_states = self.input_mamba(
+            hidden_states=hidden_states, attention_mask=attention_mask
+        )
+        hidden_states = self.layer_norm(hidden_states)
+        
+        for layer in self.layers:
+            hidden_states= layer(
+                hidden_states=hidden_states, attention_mask=attention_mask
+            )
+            all_hidden_states.append(hidden_states)
+            # all_attn_score.append(attn_score)
+        
+        for layer in self.graph_layers:
+            hidden_states, graph_data= layer(
+                hidden_states=hidden_states, attention_mask=attention_mask, graph_data=graph_data
+            )
+            all_hidden_states.append(hidden_states)
+            # all_attn_score.append(attn_score)
+           
+
+        hidden_states = self.final_norm(hidden_states)
+        
+        all_hidden_states = torch.stack(all_hidden_states, dim=1)
+        
+        return (hidden_states, all_hidden_states, all_attn_score, graph_data)
+
 # MuMo pretrain model
 class MuMoPretrain(MambaPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.layer_hidden_states = []
-        self.backbone = MuMoModel(config=config)
+        self.no_self_attention = getattr(config, 'no_self_attention', False)
+        if self.no_self_attention:
+            print("Attention-free MuMo Model Used.")
+            self.backbone = MuMoModel_without_self_attention(config=config)
+        else:
+            self.backbone = MuMoModel(config=config)
         self.to_logits = nn.Sequential(
             nn.Linear(config.hidden_size, config.vocab_size),
         )
@@ -120,7 +195,7 @@ class MuMoPretrain(MambaPreTrainedModel):
             loss = loss_fct(logits.view(-1, self.config.vocab_size), labels.view(-1))
 
         return {"logits": logits, "loss": loss}
-    
+
 
 class MuMoFormerPretrain(MambaPreTrainedModel):
     def __init__(self, config):
@@ -155,7 +230,12 @@ class MuMoFinetune(MambaPreTrainedModel):
     def __init__(self, config, class_weight=None):
         super().__init__(config)
 
-        self.backbone = MuMoModel(config=config)
+        self.no_self_attention = getattr(config, 'no_self_attention', False)
+        if self.no_self_attention:
+            print("Attention-free MuMo Model Used.")
+            self.backbone = MuMoModel_without_self_attention(config=config)
+        else:
+            self.backbone = MuMoModel(config=config)
         self.pooler = BertPooler(config)
         self.use_graph_embeddings = getattr(config, 'use_graph_embeddings', False)
         self.pool_method = getattr(config, 'pool_method', 'bert')
@@ -426,26 +506,27 @@ class TransformerMuMoModel(nn.Module):
         self.embedding = nn.Embedding(config.vocab_size, config.hidden_size)
 
         # Replace input MambaBlock with FFN
-        self.input_ffn = nn.Sequential(
-            nn.Linear(config.hidden_size, config.intermediate_size),
-            nn.GELU(),
-            nn.Linear(config.intermediate_size, config.hidden_size)
-        )
+        # self.input_ffn = nn.Sequential(
+        #     nn.Linear(config.hidden_size, config.intermediate_size),
+        #     nn.GELU(),
+        #     nn.Linear(config.intermediate_size, config.hidden_size)
+        # )
 
         # Replace AttentionMambaBlock with standard transformer blocks
-        self.layers = nn.ModuleList(
-            [
-                nn.Sequential(
-                    BertAttention(config),
-                    nn.Sequential(
-                        nn.Linear(config.hidden_size, config.intermediate_size),
-                        nn.GELU(),
-                        nn.Linear(config.intermediate_size, config.hidden_size)
-                    )
+        self.layers = nn.ModuleList([
+            nn.ModuleDict({
+                "attn_ln": nn.LayerNorm(config.hidden_size),
+                "attn": BertAttention(config),
+                "ffn_ln": nn.LayerNorm(config.hidden_size),
+                "ffn": nn.Sequential(
+                    nn.Linear(config.hidden_size, config.intermediate_size),
+                    nn.GELU(),
+                    nn.Linear(config.intermediate_size, config.hidden_size)
                 )
-                for idx in range(config.num_hidden_layers // 2)
-            ]
-        )
+            })
+            for _ in range(config.num_hidden_layers // 2)
+        ])
+
 
         # Use TransformerFusionBlock instead of HierarchicalFusionBlock
         self.graph_layers = nn.ModuleList(
@@ -454,7 +535,7 @@ class TransformerMuMoModel(nn.Module):
                 for idx in range(config.num_hidden_layers // 2)
             ]
         )
-
+        self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
         # Replace MambaRMSNorm with LayerNorm
         self.layer_norm = nn.LayerNorm(config.hidden_size)
         self.final_norm = nn.LayerNorm(config.hidden_size)
@@ -478,22 +559,18 @@ class TransformerMuMoModel(nn.Module):
         
         hidden_states = embedding
         
-        # Process through input FFN
-        hidden_states = self.input_ffn(hidden_states)
-        hidden_states = self.layer_norm(hidden_states)
         
         # Process through transformer layers
         for layer in self.layers:
-            # Self attention
-            attention_output = layer[0](
-                hidden_states=hidden_states,
-                attention_mask=attention_mask[:, None, None, :]
+            if attention_mask is not None and attention_mask.dim() == 2:
+                attention_mask = attention_mask[:, None, None, :]  # [B, 1, 1, L]
+            attn_out = layer["attn"](
+                hidden_states=layer["attn_ln"](hidden_states),
+                attention_mask=attention_mask
             )
-            hidden_states = attention_output[0] + hidden_states
-            
-            # FFN
-            ffn_output = layer[1](hidden_states)
-            hidden_states = ffn_output + hidden_states
+            hidden_states = hidden_states + self.dropout(attn_out[0])
+            ffn_out = layer["ffn"](layer["ffn_ln"](hidden_states))
+            hidden_states = hidden_states + self.dropout(ffn_out)
             
             all_hidden_states.append(hidden_states)
         

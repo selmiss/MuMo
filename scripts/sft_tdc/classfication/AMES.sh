@@ -12,7 +12,7 @@ DATATYPE=tdc_geo_tox
 # Base config
 output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}
 
-export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_PROJECT="NeurIPS_Rebuttal_SFT"
 export WANDB_DIR="${output_model}/wandb"
 
 BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
