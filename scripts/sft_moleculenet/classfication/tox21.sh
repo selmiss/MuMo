@@ -1,5 +1,5 @@
-BASE_DIR=xxx # Change to your project dir
-DATA_DIR=xxx # Change to your data file dir
+: "${BASE_DIR:?Environment variable BASE_DIR not set}"
+: "${DATA_DIR:?Environment variable DATA_DIR not set}"
 export PYTHONPATH=${BASE_DIR}
 
 filename=$(basename "${BASH_SOURCE[0]}" .sh)

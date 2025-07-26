@@ -93,8 +93,6 @@ class HierarchicalFusionBlock(nn.Module):
             hidden_states=hidden_states, attention_mask=attention_mask
         )
         
-        
-        
          # Concat and inplace operation.
         if self.global_inject and self.graph_enabled:
             graph_embeddings = global_add_pool(graph_data.x, graph_data.batch)

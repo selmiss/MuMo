@@ -28,7 +28,7 @@ export CUDA_HOME=/usr/local/cuda/
 
 # Deepspeed settings
 MASTER_PORT=29500
-GPUs=0,6
+GPUs=6,7
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
