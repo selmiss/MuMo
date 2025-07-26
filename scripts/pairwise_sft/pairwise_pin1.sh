@@ -1,13 +1,13 @@
-BASE_DIR=/root/MuMo
-DATA_DIR=/root/autodl-tmp
+: "${BASE_DIR:?Environment variable BASE_DIR not set}"
+: "${DATA_DIR:?Environment variable DATA_DIR not set}"
 export PYTHONPATH=${BASE_DIR}
 
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
-MODEL_NAME=mumo
-TASK_NAME=VDss_Lombardo
-MODEL_CLASS=MuMoFinetune
-DATATYPE=sft_tdc_geo
-CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
+MODEL_NAME=mumo_pin1
+TASK_NAME=pin1
+MODEL_CLASS=MuMoFinetunePairwise
+DATATYPE=pairwise
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_low.json
 
 
 # Base config
@@ -27,39 +27,39 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29500 --include localhost:4,5 ${BASE_DIR}/train/pairwise_sft.py \
     --run_name ${filename} \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
-    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.csv \
-    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.csv \
-    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.csv \
+    --train_files ${DATA_DIR}/dataset/dk/sft/split_data/train.jsonl \
+    --validation_files ${DATA_DIR}/dataset/dk/sft/split_data/valid.jsonl \
+    --test_files ${DATA_DIR}/dataset/dk/sft/split_data/test.jsonl \
     --data_column_name smiles \
-    --label_column_name Y \
-    --normlization True \
-    --per_device_train_batch_size 10 \
-    --per_device_eval_batch_size 10 \
-    --train_on_inputs True \
+    --label_column_name label \
+    --normlization False \
     --model_class ${MODEL_CLASS} \
     --task_type regression \
+    --per_device_train_batch_size 16 \
+    --per_device_eval_batch_size 16 \
+    --train_on_inputs True \
     --do_train \
     --do_eval \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
     --max_eval_samples 1000 \
     --frozen_layer -2 \
-    --learning_rate 3e-5 \
+    --learning_rate 5e-6 \
     --lr_scheduler_type linear \
     --gradient_accumulation_steps 1 \
-    --num_train_epochs 15 \
-    --warmup_steps 10 \
+    --num_train_epochs 4 \
+    --warmup_steps 100 \
     --logging_dir ${output_model}/logs \
     --logging_strategy steps \
-    --logging_steps 20 \
+    --logging_steps 5 \
     --save_strategy no \
     --preprocessing_num_workers 10 \
     --evaluation_strategy steps \
-    --eval_steps 100 \
+    --eval_steps 10 \
     --seed 42 \
     --disable_tqdm false \
     --block_size 1024 \

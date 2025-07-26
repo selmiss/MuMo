@@ -1,11 +1,15 @@
-BASE_DIR=/home/UWO/zjing29/Mams/MuMo # Change to your project dir
-DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
+: "${BASE_DIR:?Environment variable BASE_DIR not set}"
+: "${DATA_DIR:?Environment variable DATA_DIR not set}"
 
 export PYTHONPATH=${BASE_DIR}
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
 
 # Base config
 output_model=${DATA_DIR}/model/pretrain/${filename}
+
+export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_DIR="${output_model}/wandb"
+
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls_low.json
 
@@ -28,15 +32,15 @@ GPUs=3,4
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
-    --run_name ${output_model} \
+    --run_name ${filename} \
     --config_name ${MODEL_CONFIG} \
     --tokenizer_name ${BASE_DIR}/smiles_tokenizer/mumo_tokenizer \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
     --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
-    --train_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_train.csv \
-    --validation_files /data/lab_ph/zihao/dataset/pretrain/chembl/chembl_eval.csv \
+    --train_files ${DATA_DIR}/dataset/pretrain/chembl/chembl_train.csv \
+    --validation_files ${DATA_DIR}/dataset/pretrain/chembl/chembl_eval.csv \
     --preprocessing_num_workers 20 \
     --seed 42 \
     --ignore_data_skip true \
@@ -58,7 +62,7 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --disable_tqdm false \
     --ddp_find_unused_parameters true \
     --overwrite_output_dir \
-    --report_to tensorboard \
+    --report_to wandb \
     --do_train \
     --do_eval \
     --bf16 True \

@@ -13,6 +13,7 @@ from torch_geometric.data import Data
 from graph_batch import TriBatch
 from preprocess.mol3d_processor import smiles2GeoGraph
 from tqdm import tqdm
+from multi_gpus import multi_gpu_inference
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=32, help="Batch size for inference")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum sequence length")
     parser.add_argument("--scaler_path", type=str, help="Path to scaler file for inverse transformation")
-    
+    parser.add_argument("--world_size", type=int, default=1, help="Total number of GPUs")
     # Output arguments
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save predictions")
     
@@ -208,53 +209,51 @@ def main():
     
     # Process data in batches
     total_batches = (len(test_dataset) + args.batch_size - 1) // args.batch_size
-    for i in tqdm(range(0, len(test_dataset), args.batch_size), total=total_batches, desc="Processing batches"):
-        batch = test_dataset[i:i + args.batch_size]
-        
-        # Process each item in the batch to generate graph data
-        processed_batch = []
-        
-        # Check if batch already contains graph data
-        if isinstance(batch, dict) and 'x' in batch:
-            processed_batch = batch
-        elif isinstance(batch, dict) and 'smiles' in batch:
-            smiles = batch['smiles']
-            processed_batch = process_smiles_to_graph(smiles)
-        else:
+
+    for i in tqdm(range(0, len(test_dataset), args.batch_size * args.world_size), total=(len(test_dataset) + args.batch_size * args.world_size - 1) // (args.batch_size * args.world_size), desc="Processing batches"):
+        batch_list = []
+        smiles_list_this_round = []
+
+        for j in range(args.world_size):
+            start_idx = i + j * args.batch_size
+            end_idx = start_idx + args.batch_size
+            if start_idx >= len(test_dataset):
+                continue
+            batch = test_dataset[start_idx:end_idx]
+
+            if isinstance(batch, dict) and 'x' in batch:
+                processed_batch = batch
+            elif isinstance(batch, dict) and 'smiles' in batch:
+                smiles = batch['smiles']
+                processed_batch = process_smiles_to_graph(smiles)
+            else:
+                continue
+
+            if not processed_batch:
+                continue
+
+            batch_data = process_batch_for_inference(processed_batch, tokenizer, args.max_length)
+            batch_list.append(batch_data)
+            smiles_list_this_round.extend(processed_batch['smiles'])
+
+        if not batch_list:
             continue
 
-        if not processed_batch:
-            continue
-            
-        batch_data = process_batch_for_inference(processed_batch, tokenizer, args.max_length)
+        predictions = multi_gpu_inference(model, batch_list).numpy()
         
-        # Move tensors to device
-        for key, value in batch_data.items():
-            if isinstance(value, torch.Tensor):
-                batch_data[key] = value.to(device)
-            elif hasattr(value, 'to'):  # For graph data
-                batch_data[key] = value.to(device)
+        # Append results to CSV file
+        batch_df = pd.DataFrame({
+            "smiles": smiles_list_this_round,
+            "prediction": predictions.flatten()
+        })
+        batch_df.to_csv(tmp_results_file, mode='a', header=False, index=False)
         
-        # Inference
-        with torch.no_grad():
-            outputs = model(**batch_data)
-            predictions = outputs['logits'].cpu().numpy()
-            logger.debug(f"Batch predictions shape: {predictions.shape}")
-            logger.debug(f"First few predictions: {predictions[:5]}")
-            
-            batch_df = pd.DataFrame({
-                "smiles": processed_batch['smiles'],
-                "prediction": predictions.flatten()
-            })
-            batch_df.to_csv(tmp_results_file, mode='a', header=False, index=False)
-            # Store predictions
-            if all_predictions is None:
-                all_predictions = predictions
-            else:
-                all_predictions = np.concatenate([all_predictions, predictions])
-                
-            # Store SMILES for this batch
-            all_smiles.extend(processed_batch['smiles'])
+        if all_predictions is None:
+            all_predictions = predictions
+        else:
+            all_predictions = np.concatenate([all_predictions, predictions], axis=0)
+
+        all_smiles.extend(smiles_list_this_round)
     
     logger.debug(f"Total predictions shape: {all_predictions.shape}")
     logger.debug(f"Total SMILES: {len(all_smiles)}")

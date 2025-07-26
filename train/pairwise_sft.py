@@ -3,7 +3,7 @@ import os
 import sys
 import random
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Dict 
 import numpy as np
 import datasets
 import torch
@@ -38,7 +38,79 @@ logger = logging.getLogger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
+class PairwiseTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize loss accumulators
+        self.loss_pairwise_accumulator = []
+        self.loss_regression_accumulator = []
+        
+    def compute_loss(self, model, inputs, return_outputs=False,  **kwargs):
+        # 调用模型得到所有输出
+        outputs = model(**inputs)                   # 你的 outputs 里有 loss / loss_pairwise / loss_regression
+        loss = outputs["loss"]
 
+        # Store losses as instance attributes for later access
+        self.current_loss_pairwise = outputs["loss_pairwise"].item()
+        self.current_loss_regression = outputs["loss_regression"].item()
+        
+        # Accumulate losses for averaging
+        self.loss_pairwise_accumulator.append(self.current_loss_pairwise)
+        self.loss_regression_accumulator.append(self.current_loss_regression)
+
+        return (loss, outputs) if return_outputs else loss
+
+    def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):
+        if self.control.should_log and self.state.global_step > self._globalstep_last_logged:
+            
+            logs: Dict[str, float] = {}
+            if hasattr(self, 'current_loss_pairwise') and hasattr(self, 'current_loss_regression'):
+                # all_gather + mean() to get average loss over all processes
+                tr_loss_scalar = self._nested_gather(tr_loss).mean().item()
+                
+
+                # reset tr_loss to zero
+                tr_loss -= tr_loss
+
+                logs["loss"] = round(tr_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
+                if grad_norm is not None:
+                    logs["grad_norm"] = grad_norm.detach().item() if isinstance(grad_norm, torch.Tensor) else grad_norm
+                logs["learning_rate"] = self._get_learning_rate()
+
+                self._total_loss_scalar += tr_loss_scalar
+                self._globalstep_last_logged = self.state.global_step
+                self.store_flos()
+                # Add custom losses to the standard logs
+                
+                # Add averaged losses if we have accumulated data
+                if self.loss_pairwise_accumulator:
+                    logs["avg_loss_pairwise"] = sum(self.loss_pairwise_accumulator) / len(self.loss_pairwise_accumulator)
+                    logs["avg_loss_regression"] = sum(self.loss_regression_accumulator) / len(self.loss_regression_accumulator)
+                    
+                    # Clear accumulators after logging
+                    self.loss_pairwise_accumulator = []
+                    self.loss_regression_accumulator = []
+                
+                self.log(logs)
+        
+        # Call the parent method to handle standard logging
+        super()._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval)
+
+    def log_custom_metrics(self, metrics_dict, step=None):
+        """Custom logging method with more control"""
+        if step is None:
+            step = self.state.global_step
+            
+        # Log to console
+        print(f"Step {step}: {metrics_dict}")
+        
+        # Log using the standard trainer log method
+        self.log(metrics_dict)
+        
+        # Additional custom logging (optional)
+        if hasattr(self, 'custom_logger'):
+            self.custom_logger.log(metrics_dict, step=step)
+    
 @dataclass
 class ModelArguments:
     """
@@ -397,11 +469,6 @@ def main():
             raise ValueError(
                 "No valid training or validation files found to determine the extension."
             )
-
-        # --- Debugging --hard code here ------------------------------------------------------------
-        if extension == "csv":
-            extension = "jsonl"
-        # --- Debugging --hard code here ------------------------------------------------------------   
             
         if extension == "txt":
             extension = "text"
@@ -661,32 +728,31 @@ def main():
         )
 
         if model_args.task_type == "regression":
-
             def compute_metrics(pred):
-                labels = pred.label_ids
-                predictions = pred.predictions
 
-                if data_args.normlization:
-                    predictions = scaler.inverse_transform(predictions.reshape(-1, 1))
-                    labels = scaler.inverse_transform(labels.reshape(-1, 1))
+                logits, labels = pred.predictions, pred.label_ids
+                # logits: shape (batch_size, 2)
+                # import pdb; pdb.set_trace()
+                score_a, score_b = logits[0][:, 0], logits[0][:, 1]
+                loss_pairwise, loss_regression = logits[1], logits[2]
+                margin = score_b - score_a
 
-                    predictions = predictions.flatten().tolist()
-                    labels = labels.flatten().tolist()
+                mean_margin = margin.mean()
+                correct_margin = ((margin > 0) == (labels == 1)).mean()
 
-                mae = mean_absolute_error(labels, predictions)
-                rmse = np.sqrt(mean_squared_error(labels, predictions))
-                r2 = r2_score(labels, predictions)
-                try:
-                    pearson_corr, _ = pearsonr(labels, predictions)
-                except ValueError:
-                    pearson_corr = float("nan")
-
-                return {
-                    "mae": mae,
-                    "rmse": rmse,
-                    "r2": r2,
-                    "pearson_corr": pearson_corr,
+                pred = (score_a < score_b).astype(int)
+                acc = (pred == labels).mean()
+                
+                metrics = {
+                    "mean_margin": mean_margin,
+                    "correct_margin": correct_margin,
+                    "pairwise_accuracy": acc,
+                    "loss_pairwise": sum(loss_pairwise)/len(loss_pairwise),
+                    "loss_regression": sum(loss_regression)/len(loss_regression)
                 }
+            
+                
+                return metrics
 
         elif model_args.task_type == "classification":
             if model_args.output_size == -1:
@@ -781,6 +847,51 @@ def main():
     
     from torch_geometric.data import Batch
     from graph_batch import TriBatch
+    
+    def custom_collate_fn_pairwise(batch):
+        def tokenize_and_batch(inputs):
+            smiles = [item["smiles"] for item in inputs]
+            tokenized = tokenizer(
+                smiles, truncation=True, max_length=data_args.block_size,
+                padding=True, return_tensors="pt"
+            )
+            values = [item[target_column_name] for item in inputs]
+            values = torch.tensor(values, dtype=torch.float)
+            return tokenized["input_ids"], tokenized["attention_mask"], values
+
+        def batch_graph_data(inputs):
+            def convert_value(key, value):
+                if key in type_map:
+                    converter = type_map[key]
+                    if callable(converter):
+                        return converter(value)
+                    else:
+                        return torch.tensor(value, dtype=converter)
+                return value 
+            batch_data = [
+                Data(**{key: convert_value(key, value) if isinstance(value, list) else value for key, value in data_dict.items()})
+                for data_dict in inputs
+            ]
+            graph_batch = TriBatch.from_data_list(batch_data)
+            return graph_batch
+
+        inputs_a = [item["x1"] for item in batch]
+        inputs_b = [item["x2"] for item in batch]
+
+        preferences = torch.tensor([item["1"] for item in batch])
+
+        return {
+            "input_ids_a": tokenize_and_batch(inputs_a)[0],
+            "attention_mask_a": tokenize_and_batch(inputs_a)[1],
+            "values_a": tokenize_and_batch(inputs_a)[2],
+            "graph_data_a": batch_graph_data(inputs_a),
+            "input_ids_b": tokenize_and_batch(inputs_b)[0],
+            "attention_mask_b": tokenize_and_batch(inputs_b)[1],
+            "values_b": tokenize_and_batch(inputs_b)[2],
+            "graph_data_b": batch_graph_data(inputs_b),
+            "labels": preferences
+        }
+
 
     def custom_collate_fn(batch):
         """
@@ -840,13 +951,14 @@ def main():
     
     # Initialize our Trainer
     training_args.remove_unused_columns = False
-    trainer = Trainer(
+    
+    trainer = PairwiseTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset if training_args.do_train else None,
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
-        data_collator=custom_collate_fn,
+        data_collator=custom_collate_fn_pairwise,
         compute_metrics=(
             compute_metrics
             if training_args.do_eval and not is_torch_tpu_available()

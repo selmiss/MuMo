@@ -42,5 +42,6 @@
   "use_conv_bias": true,
   "vocab_size": 2364,
   "brics": false,
-  "geo_operation": false
+  "geo_operation": false,
+  "pairwise_margin": 0.2
 }

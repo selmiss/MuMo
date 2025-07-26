@@ -1,15 +1,22 @@
 BASE_DIR=xxx # Change to your project dir
 DATA_DIR=xxx # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
+
+filename=$(basename "${BASH_SOURCE[0]}" .sh)
 MODEL_NAME=$1
 TASK_NAME=hiv
 DATATYPE=$5
 MODEL_CLASS=$4
+
 for i in {1..3}
 do
     echo $i
     # Base config
     output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}_${i}
+    
+    export WANDB_PROJECT="NeurIPS_Rebuttal"
+    export WANDB_DIR="${output_model}/wandb"
+    
     BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
     DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 
@@ -18,11 +25,12 @@ do
     if [ ! -d ${output_model} ];then  
         mkdir ${output_model}
     fi
-    cp ${SCRIPT_PATH} ${output_model}·
+    cp ${SCRIPT_PATH} ${output_model}
     cp ${DS_CONFIG} ${output_model}
 
     # Runner
     deepspeed --master_port $2 --include localhost:$3 ${BASE_DIR}/train/finetune.py \
+        --run_name ${filename}_${i} \
         --model_class ${MODEL_CLASS} \
         --task_type classification \
         --model_name_or_path ${BASE_MODEL} \
@@ -55,7 +63,7 @@ do
         --seed 42 \
         --disable_tqdm false \
         --block_size 1024 \
-        --report_to tensorboard \
+        --report_to wandb \
         --overwrite_output_dir \
         --ignore_data_skip true \
         --bf16 False \

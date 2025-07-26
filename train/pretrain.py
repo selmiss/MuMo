@@ -517,13 +517,29 @@ def main():
             'x': graph_data.x.tolist(),
             'edge_index': graph_data.edge_index.tolist(),
             'edge_attr': graph_data.edge_attr.tolist(),
-            'cluster_idx': torch.zeros(graph_data.x.shape[0], dtype=torch.int64).tolist()
         }
         # Preserve all other columns
         for key, value in example.items():
             if key not in result:
                 result[key] = value
         return result
+
+    # If no validation data is there, validation_split_percentage will be used to divide the dataset.
+    if "validation" not in raw_datasets.keys() and training_args.do_eval:
+        raw_datasets["validation"] = load_dataset(
+            extension,
+            data_files=data_files,
+            split=f"train[:{data_args.validation_split_percentage}%]",
+            cache_dir=model_args.cache_dir,
+            **dataset_args,
+        )
+        raw_datasets["train"] = load_dataset(
+            extension,
+            data_files=data_files,
+            split=f"train[{data_args.validation_split_percentage}%:]",
+            cache_dir=model_args.cache_dir,
+            **dataset_args,
+        )
 
     # Process the datasets
     if training_args.do_train:
@@ -540,23 +556,6 @@ def main():
             num_proc=data_args.preprocessing_num_workers,
             remove_columns=raw_datasets["validation"].column_names,
             desc="Processing validation dataset"
-        )
-
-    # If no validation data is there, validation_split_percentage will be used to divide the dataset.
-    if "validation" not in raw_datasets.keys():
-        raw_datasets["validation"] = load_dataset(
-            extension,
-            data_files=data_files,
-            split=f"train[:{data_args.validation_split_percentage}%]",
-            cache_dir=model_args.cache_dir,
-            **dataset_args,
-        )
-        raw_datasets["train"] = load_dataset(
-            extension,
-            data_files=data_files,
-            split=f"train[{data_args.validation_split_percentage}%:]",
-            cache_dir=model_args.cache_dir,
-            **dataset_args,
         )
     ### End Load Data Files
 

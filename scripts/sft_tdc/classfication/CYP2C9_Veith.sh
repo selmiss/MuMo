@@ -1,7 +1,9 @@
-BASE_DIR=xxx # Change to your project dir
-DATA_DIR=xxx/Nips # Change to your data file dir
+: "${BASE_DIR:?Environment variable BASE_DIR not set}"
+: "${DATA_DIR:?Environment variable DATA_DIR not set}"
 
 export PYTHONPATH=${BASE_DIR}
+
+filename=$(basename "${BASH_SOURCE[0]}" .sh)
 MODEL_NAME=mumo
 TASK_NAME=CYP2C9_Veith
 MODEL_CLASS=MuMoFinetune
@@ -9,6 +11,9 @@ DATATYPE=sft_tdc_geo
 
 # Base config
 output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}
+
+export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_DIR="${output_model}/wandb"
 BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 
@@ -22,6 +27,7 @@ cp ${DS_CONFIG} ${output_model}
 
 # Runner
 deepspeed --master_port 29500 --include localhost:1 ${BASE_DIR}/train/finetune.py \
+    --run_name ${filename} \
     --model_class ${MODEL_CLASS} \
     --task_type classification \
     --model_name_or_path ${BASE_MODEL} \
@@ -57,7 +63,7 @@ deepspeed --master_port 29500 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --seed 42 \
     --disable_tqdm false \
     --block_size 1024 \
-    --report_to tensorboard \
+    --report_to wandb \
     --overwrite_output_dir \
     --ignore_data_skip true \
     --bf16 False \

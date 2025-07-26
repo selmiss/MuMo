@@ -253,6 +253,163 @@ class MuMoFinetune(MambaPreTrainedModel):
 
         return {"logits": logits, "loss": loss}
 
+# MuMo Fintune Model.
+class MuMoFinetunePairwise(MambaPreTrainedModel):
+    
+    def __init__(self, config, class_weight=None):
+        super().__init__(config)
+
+        self.backbone = MuMoModel(config=config)
+        self.pooler = BertPooler(config)
+        self.pool_method = getattr(config, 'pool_method', 'bert')
+        if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
+            self.pooler_b = BertPooler(config)
+            print("Bipooler or mixpooler Activated.")
+        self.class_weight = class_weight
+        self.pairwise_margin = config.pairwise_margin
+        # Weights for combining pairwise (ranking) and regression (value-based) losses
+        self.pairwise_weight = getattr(config, "pairwise_weight", 1.0)
+        self.regression_weight = getattr(config, "regression_weight", 1.0)
+        self.task_type = config.task_type
+        self.multi_mark = False
+        if  self.task_type == "regression":
+            self.loss_fn = nn.MSELoss()
+            self.output_size = 1
+        elif  self.task_type == "classification":
+            self.output_size = 2
+                
+            if self.class_weight is not None:
+                self.loss_fn = nn.CrossEntropyLoss(weight=self.class_weight)
+            else:
+                self.loss_fn = nn.CrossEntropyLoss()
+            if config.output_size != -1:
+                self.output_size = config.output_size
+                self.multi_mark = True
+                self.loss_fn = nn.BCEWithLogitsLoss()
+        
+        self.task_head = nn.Sequential(
+            nn.Linear(config.hidden_size, self.output_size),
+        )
+        if self.pool_method == "bipooler":
+            self.task_head = nn.Sequential(
+                nn.Linear(2 * config.hidden_size, self.output_size),
+            )
+        if self.pool_method == "mixpooler":
+            self.task_head = nn.Sequential(
+                nn.Linear(3 * config.hidden_size, self.output_size),
+            )
+        # self._initialize_parameters()
+        
+    def initialize_parameters(self):
+        for name, param in self.pooler.named_parameters():
+            if 'weight' in name:
+                init.xavier_uniform_(param)
+            elif 'bias' in name:
+                init.zeros_(param)
+        if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
+            for name, param in self.pooler_b.named_parameters():
+                if 'weight' in name:
+                    init.xavier_uniform_(param)
+                elif 'bias' in name:
+                    init.zeros_(param)
+        for layer in self.task_head:
+            if isinstance(layer, nn.Linear):
+                init.xavier_uniform_(layer.weight)
+                init.zeros_(layer.bias)
+    
+    def compute_loss(self, model, inputs, return_outputs=False):
+            outputs = self(**inputs)
+            loss = outputs["loss"]
+
+            if "loss_pairwise" in outputs:
+                print(f"loss_pairwise: {outputs['loss_pairwise'].item():.4f}")
+            if "loss_regression" in outputs:
+                print(f"loss_regression: {outputs['loss_regression'].item():.4f}")
+
+            return (loss, outputs) if return_outputs else loss
+    
+    def forward(
+        self,
+        input_ids_a,
+        input_ids_b,
+        attention_mask_a: Optional[torch.LongTensor] = None,
+        graph_data_a: Optional[Data] = None,
+        attention_mask_b: Optional[torch.LongTensor] = None,
+        graph_data_b: Optional[Data] = None,
+        values_a: Optional[torch.LongTensor] = None,
+        values_b: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        **kwargs
+    ):
+        # 编码第一条样本
+        output_a = self.backbone(input_ids_a, attention_mask=attention_mask_a, graph_data=graph_data_a)
+        pooled_a = self.pooler(output_a[0])
+        if self.pool_method == "bipooler":
+            pooled_bi_a = self.pooler_b(reverse_seq_tensor(output_a[0]))
+            pooled_a = torch.cat([pooled_a, pooled_bi_a], dim=1)
+        elif self.pool_method == "mixpooler":
+            pooled_bi_a = self.pooler_b(reverse_seq_tensor(output_a[0]))
+            mean_pool = torch.mean(output_a[0], dim=1)
+            max_pool, _ = torch.max(output_a[0], dim=1)
+            pooled_a = torch.cat([pooled_a, pooled_bi_a, mean_pool], dim=1)
+
+        score_a = self.task_head(pooled_a).view(-1)  # regression scalar
+
+        # 编码第二条样本
+        output_b = self.backbone(input_ids_b, attention_mask=attention_mask_b, graph_data=graph_data_b)
+        pooled_b = self.pooler(output_b[0])
+        if self.pool_method == "bipooler":
+            pooled_bi_b = self.pooler_b(reverse_seq_tensor(output_b[0]))
+            pooled_b = torch.cat([pooled_b, pooled_bi_b], dim=1)
+        elif self.pool_method == "mixpooler":
+            pooled_bi_b = self.pooler_b(reverse_seq_tensor(output_b[0]))
+            mean_pool = torch.mean(output_b[0], dim=1)
+            max_pool, _ = torch.max(output_b[0], dim=1)
+            pooled_b = torch.cat([pooled_b, pooled_bi_b, mean_pool], dim=1)
+
+        score_b = self.task_head(pooled_b).view(-1)
+
+        # Loss: MarginRankingLoss
+        pair_loss = None
+        total_loss = None
+        if labels is not None:
+            targets = labels.float() * 2 - 1  # 0/1 → -1/1
+            loss_fn = torch.nn.MarginRankingLoss(margin=self.pairwise_margin)
+            pair_loss = loss_fn(score_a, score_b, -targets)
+            total_loss = pair_loss
+
+        # Regression loss (Mean Absolute Error) between predicted scores and provided values
+        reg_loss = None
+        if values_a is not None and values_b is not None:
+            # Ensure type and device consistency
+            if not torch.is_tensor(values_a):
+                values_a = torch.tensor(values_a, dtype=score_a.dtype, device=score_a.device)
+            else:
+                values_a = values_a.to(score_a.device, dtype=score_a.dtype)
+            if not torch.is_tensor(values_b):
+                values_b = torch.tensor(values_b, dtype=score_b.dtype, device=score_b.device)
+            else:
+                values_b = values_b.to(score_b.device, dtype=score_b.dtype)
+
+            mae_a = torch.nn.functional.l1_loss(score_a, values_a, reduction="mean")
+            mae_b = torch.nn.functional.l1_loss(score_b, values_b, reduction="mean")
+            reg_loss = 0.5 * (mae_a + mae_b)
+
+        # Combine losses if both are available, otherwise use the one that exists
+        if pair_loss is not None and reg_loss is not None:
+            total_loss = self.pairwise_weight * pair_loss + self.regression_weight * reg_loss
+        elif pair_loss is None and reg_loss is not None:
+            total_loss = reg_loss
+        # If both None, total_loss remains None
+
+        return {
+            "logits": torch.stack([score_a, score_b], dim=1),
+            "loss": total_loss,
+            "loss_pairwise": pair_loss.detach() if pair_loss is not None else None,
+            "loss_regression": reg_loss.detach() if reg_loss is not None else None,
+        }
+
+
 class TransformerMuMoModel(nn.Module):
     def __init__(self, config):
         super().__init__()

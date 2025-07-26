@@ -1,6 +1,8 @@
 BASE_DIR=xxx # Change to your project dir
 DATA_DIR=xxx/model # Change to your data file dir
 export PYTHONPATH=${BASE_DIR}
+
+filename=$(basename "${BASH_SOURCE[0]}" .sh)
 MODEL_NAME=mumo
 TASK_NAME=xx
 DATATYPE=xx
@@ -9,6 +11,9 @@ CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 # Base config
 output_model=xxx/model/sft/mumo/dk
+
+export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_DIR="${output_model}/wandb"
 BASE_MODEL=${DATA_DIR}/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 
@@ -22,6 +27,7 @@ cp ${DS_CONFIG} ${output_model}
 
 # Runner
 deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.py \
+    --run_name ${filename} \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
     --train_files xxx/Nips/dataset/dk/training_10%.csv \
@@ -56,7 +62,7 @@ deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.p
     --seed 42 \
     --disable_tqdm false \
     --block_size 1024 \
-    --report_to tensorboard \
+    --report_to wandb \
     --overwrite_output_dir \
     --ignore_data_skip true \
     --bf16 False \

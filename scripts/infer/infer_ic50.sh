@@ -6,8 +6,8 @@ MODEL_CLASS=MuMoFinetune
 CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_low.json
 
 # Base config
-output_dir=${DATA_DIR}/model/sft/mumo/pin1_infer
-BASE_MODEL=${DATA_DIR}/model/sft/mumo_pin1/mumo_pin1_MuMoFinetunePairwise_pairwise-pin1
+output_dir=${DATA_DIR}/model/sft/mumo/pin1_infer_ic50
+BASE_MODEL=${DATA_DIR}/model/sft/mumo_pin1/mumo_pin1_MuMoFinetunePairwise_pairwise-pin1_ic50_e10
 
 # DeepSpeed config
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
@@ -20,8 +20,7 @@ fi
 cp ${SCRIPT_PATH} ${output_dir}
 
 # Runner
-
-CUDA_VISIBLE_DEVICES=4,5 python ${BASE_DIR}/train/inference.py \
+CUDA_VISIBLE_DEVICES=1 python ${BASE_DIR}/train/inference.py \
     --model_name_or_path ${BASE_MODEL} \
     --model_class ${MODEL_CLASS} \
     --task_type regression \
@@ -31,7 +30,7 @@ CUDA_VISIBLE_DEVICES=4,5 python ${BASE_DIR}/train/inference.py \
     --torch_dtype float32 \
     --output_size 1 \
     --pool_method mean \
-    --test_files ${DATA_DIR}/dataset/dk/targets/pretrain_sampled_smiles_random_200k.csv \
+    --test_files ${DATA_DIR}/dataset/dk/targets/smiles_all_051.jsonl \
     --data_column_name smiles \
     --output_dir ${output_dir} \
     --batch_size 1024 \

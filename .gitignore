@@ -1,3 +1,6 @@
+requirements_backup.txt
+init_env_mine.sh
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -6,6 +9,7 @@ __pycache__/
 # External repos
 causal-conv1d/
 mamba/
+wandb/
 
 # C extensions
 *.so

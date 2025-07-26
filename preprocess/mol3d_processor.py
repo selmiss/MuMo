@@ -465,9 +465,17 @@ def merge_geotest_dataset_dir(input_root, output_root):
         print(f"Error writing merged JSONL file: {e}")
 
 if __name__ == "__main__":
-    data_path = "/data/lab_ph/zihao/dataset/ZINC/ZINC_250k.csv"
-    output_path = "/data/lab_ph/zihao/dataset/pretrain/geo_data/zinc_train_eval.pt"
-    process_dataset_and_save_multithreaded(data_path, output_path, num_workers=20)
+    import os
+    
+    # Check for required environment variables
+    if 'DATA_DIR' not in os.environ:
+        raise ValueError("Environment variable DATA_DIR not set")
+    
+    DATA_DIR = os.environ['DATA_DIR']
+    
+    data_path = f"{DATA_DIR}/dataset/dk/targets/smiles_all_051.csv"
+    output_path = f"{DATA_DIR}/dataset/dk/targets/smiles_all_051.jsonl"
+    process_dataset_and_save_multithreaded(data_path, output_path, num_workers=10, brics=False, geo_operation=False)
     
     # transfer_data(input_path=output_path, output_path="your_data_dir/dataset/pretrain/geo_data/chembl_train_dict.jsonl")
     

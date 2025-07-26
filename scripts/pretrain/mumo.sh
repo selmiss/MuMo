@@ -1,17 +1,20 @@
-BASE_DIR=/home/UWO/zjing29/Mams/MuMo # Change to your project dir
-DATA_DIR=/data/lab_ph/zihao/Nips # Change to your data file dir
+: "${BASE_DIR:?Environment variable BASE_DIR not set}"
+: "${DATA_DIR:?Environment variable DATA_DIR not set}"
 
 export PYTHONPATH=${BASE_DIR}
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
+output_model=${DATA_DIR}/model/pretrain/${filename}
+
+export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_DIR="${output_model}/wandb"
 
 # Base config
-output_model=${DATA_DIR}/model/pretrain/${filename}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls.json
 
 # Keep this
 SCRIPT_PATH="$(realpath "$0")"
-if [ ! -d ${output_model} ];then  
+if [ ! -d ${output_model} ];then
     mkdir ${output_model}
 fi
 cp ${SCRIPT_PATH} ${output_model}
@@ -20,15 +23,14 @@ cp ${MODEL_CONFIG} ${output_model}/config.json
 cp ${BASE_DIR}/train/pretrain.py ${output_model}
 
 export CUDA_HOME=/usr/local/cuda/
-# export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
 MASTER_PORT=29500
-GPUs=1,2
+GPUs=5,6
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
-    --run_name ${output_model} \
+    --run_name ${filename} \
     --config_name ${MODEL_CONFIG} \
     --tokenizer_name ${BASE_DIR}/smiles_tokenizer/mumo_tokenizer \
     --use_fast_tokenizer false \
@@ -58,7 +60,7 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --disable_tqdm false \
     --ddp_find_unused_parameters true \
     --overwrite_output_dir \
-    --report_to tensorboard \
+    --report_to wandb \
     --do_train \
     --do_eval \
     --bf16 True \

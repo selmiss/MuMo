@@ -107,9 +107,40 @@ pip install -e .
 
 ---
 
+## **Environment Setup**
+
+Before running any scripts, you must configure the environment variables for your project and data directories.
+
+1. **Edit the environment configuration file:**
+   ```bash
+   # Open init_env.sh and update the paths
+   nano init_env.sh  # or use your preferred editor
+   ```
+
+2. **Update the paths in `init_env.sh`:**
+   ```bash
+   export BASE_DIR=/path/to/your/MuMo  # Change to your project directory path
+   export DATA_DIR=/path/to/your/data  # Change to your data directory path
+   export PYTHONPATH=${BASE_DIR}
+   ```
+
+3. **Source the environment file before running any scripts:**
+   ```bash
+   source init_env.sh
+   ```
+
+**Important Notes:**
+- Ensure that **neither `DATA_DIR` nor `BASE_DIR` includes a trailing slash at the end**
+- `BASE_DIR` should point to the root directory of this MuMo repository
+- `DATA_DIR` should point to the directory containing your dataset folder
+- You must run `source init_env.sh` in every new terminal session before executing any scripts
+- All training, inference, and preprocessing scripts depend on these environment variables
+
+---
+
 ## **3. Dataset**
 
-The pretrain and finetune dataset s used in our experiments can be downloaded from the anonymous storage link:
+The pretrain and finetune datasets used in our experiments can be downloaded from the anonymous storage link:
 
 🔗 [Finetune Dataset (Anonymous)](https://drive.google.com/file/d/1-KVM21Hc1pdx4p3agxqiuIuk-Gur_5KO/view?usp=sharing) 243.8M
 
@@ -117,13 +148,10 @@ The pretrain and finetune dataset s used in our experiments can be downloaded fr
 
 After downloading the ZIP compressed dataset, extract it to obtain the `dataset` folder. If both pretraining and fine-tuning datasets are downloaded, merge them into a single `dataset` folder.
 
-Place the extracted and merged `dataset` folder in an appropriate location on your system and remember its path. Then, update the `DATA_DIR` variable in the bash scripts you need to run within this repository to point to the dataset folder's path. 
-
-Similarly, update the `BASE_DIR` variable to the path where you have placed the `MuMo` repository (including the `MuMo` folder itself). 
-
-Ensure that **neither `DATA_DIR` nor `BASE_DIR` includes a trailing slash in the end**. It is recommended to use VS Code's search-and-replace feature for quick modifications, search and replace `DATA_DIR` and `BASE_DIR`.
+Place the extracted and merged `dataset` folder in an appropriate location on your system and update the `DATA_DIR` variable in `init_env.sh` to point to the directory containing the dataset folder (see **Environment Setup** section above).
 
 If you want to process your own data, please use `mol3d_processor.py` to do it, there is an example in it.
+
 ---
 
 ## **4. Model Checkpoints**

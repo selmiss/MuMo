@@ -30,7 +30,8 @@ class TriBatch(Batch):
                     batch[key] = value
             current_node_offset += data.num_nodes
             current_edge_offset += data.num_edges
-            current_cluster_offset += torch.max(data.cluster_idx) + 1
+            if hasattr(data, 'cluster_idx') and data.cluster_idx is not None:
+                current_cluster_offset += torch.max(data.cluster_idx) + 1
             # Handle case where fra_edge_attr might not exist
             if hasattr(data, 'fra_edge_attr') and data.fra_edge_attr is not None:
                 current_fra_edge_offset += data.fra_edge_attr.shape[0]

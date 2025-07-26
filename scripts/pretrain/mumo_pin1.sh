@@ -9,9 +9,9 @@ output_model=${DATA_DIR}/model/pretrain/${filename}
 
 export WANDB_PROJECT="NeurIPS_Rebuttal"
 export WANDB_DIR="${output_model}/wandb"
-
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
-MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls.json
+MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls_low.json
+BASE_MODEL=${DATA_DIR}/model/pretrain/mumo
 
 # Keep this
 SCRIPT_PATH="$(realpath "$0")"
@@ -27,31 +27,32 @@ export CUDA_HOME=/usr/local/cuda/
 # export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
-MASTER_PORT=29500
-GPUs=0,6
+MASTER_PORT=29504
+GPUs=4,5
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
-    --run_name ${filename} \
+    --run_name ${filename}\
     --config_name ${MODEL_CONFIG} \
+    --model_name_or_path ${BASE_MODEL} \
     --tokenizer_name ${BASE_DIR}/smiles_tokenizer/mumo_tokenizer \
     --use_fast_tokenizer false \
     --output_dir ${output_model} \
-    --model_class MuMoFormerPretrain \
+    --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
-    --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
-    --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \
-    --preprocessing_num_workers 20 \
+    --train_files   ${DATA_DIR}/dataset/dk/sft/training_whole1.jsonl \
+                    ${DATA_DIR}/dataset/dk/targets/2D_sample_target_200k.jsonl \
+    --preprocessing_num_workers 10 \
     --seed 42 \
     --ignore_data_skip true \
-    --per_device_train_batch_size 128 \
-    --per_device_eval_batch_size 128 \
+    --per_device_train_batch_size 64 \
+    --per_device_eval_batch_size 64 \
     --num_train_epochs 2 \
     --learning_rate 1e-4 \
     --lr_scheduler_type cosine \
     --warmup_steps 2000 \
     --gradient_accumulation_steps 1 \
-    --evaluation_strategy  steps \
+    --evaluation_strategy steps \
     --eval_steps 1000 \
     --max_eval_samples 5000 \
     --save_strategy epoch \
