@@ -10,18 +10,23 @@ from torch import nn
 from torch_geometric.data import Data
 from torch_geometric.nn import global_add_pool
 from model.attention_mamba import AttentionMambaBlock, MambaBlock_without_self_attention
-from model.fusion_block import HierarchicalFusionBlock, HierarchicalFusionBlock_without_self_attention
+from model.fusion_block import (
+    HierarchicalFusionBlock,
+    HierarchicalFusionBlock_without_self_attention,
+)
 import torch.nn.init as init
 from transformers.modeling_outputs import ModelOutput
 from transformers.models.bert.modeling_bert import BertAttention
 from model.fusion_block import TransformerFusionBlock
 
+
 def reverse_seq_tensor(batch_seq):
     # Reverse the sequences along dimension 1 (seq_len)
     reversed_seq = torch.flip(batch_seq, dims=[1])
 
-    return reversed_seq  
-    
+    return reversed_seq
+
+
 # MuMo core model - Insert Graph and Geometry Information in the half way.
 class MuMoModel(MambaPreTrainedModel):
     def __init__(self, config):
@@ -39,7 +44,13 @@ class MuMoModel(MambaPreTrainedModel):
         )
         self.graph_layers = nn.ModuleList(
             [
-                HierarchicalFusionBlock(config, layer_idx=idx, global_inject=True, brics=config.brics, geo_operation=config.geo_operation)
+                HierarchicalFusionBlock(
+                    config,
+                    layer_idx=idx,
+                    global_inject=True,
+                    brics=config.brics,
+                    geo_operation=config.geo_operation,
+                )
                 for idx in range(config.num_hidden_layers // 2)
             ]
         )
@@ -53,43 +64,45 @@ class MuMoModel(MambaPreTrainedModel):
         self.embedding = new_embeddings
 
     def forward(
-        self, 
-        input_ids, 
-        attention_mask: Optional[torch.LongTensor] = None, 
+        self,
+        input_ids,
+        attention_mask: Optional[torch.LongTensor] = None,
         graph_data: Optional[Data] = None,
-        **kwargs
+        **kwargs,
     ):
 
         embedding = self.embedding(input_ids)
         all_hidden_states = []
         all_attn_score = []
-        
+
         hidden_states = embedding
-        
+
         hidden_states = self.input_mamba(
             hidden_states=hidden_states, attention_mask=attention_mask
         )
         hidden_states = self.layer_norm(hidden_states)
-        
+
         for layer in self.layers:
-            hidden_states= layer(
+            hidden_states = layer(
                 hidden_states=hidden_states, attention_mask=attention_mask
             )
             all_hidden_states.append(hidden_states)
             # all_attn_score.append(attn_score)
-        
-        for layer in self.graph_layers:
-            hidden_states, graph_data= layer(
-                hidden_states=hidden_states, attention_mask=attention_mask, graph_data=graph_data
-            )
-            all_hidden_states.append(hidden_states)
+
+        if graph_data is not None:
+            for layer in self.graph_layers:
+                hidden_states, graph_data = layer(
+                    hidden_states=hidden_states,
+                    attention_mask=attention_mask,
+                    graph_data=graph_data,
+                )
+                all_hidden_states.append(hidden_states)
             # all_attn_score.append(attn_score)
-           
 
         hidden_states = self.final_norm(hidden_states)
-        
+
         all_hidden_states = torch.stack(all_hidden_states, dim=1)
-        
+
         return (hidden_states, all_hidden_states, all_attn_score, graph_data)
 
 
@@ -109,7 +122,13 @@ class MuMoModel_without_self_attention(MambaPreTrainedModel):
         )
         self.graph_layers = nn.ModuleList(
             [
-                HierarchicalFusionBlock_without_self_attention(config, layer_idx=idx, global_inject=True, brics=config.brics, geo_operation=config.geo_operation)
+                HierarchicalFusionBlock_without_self_attention(
+                    config,
+                    layer_idx=idx,
+                    global_inject=True,
+                    brics=config.brics,
+                    geo_operation=config.geo_operation,
+                )
                 for idx in range(config.num_hidden_layers // 2)
             ]
         )
@@ -123,51 +142,53 @@ class MuMoModel_without_self_attention(MambaPreTrainedModel):
         self.embedding = new_embeddings
 
     def forward(
-        self, 
-        input_ids, 
-        attention_mask: Optional[torch.LongTensor] = None, 
+        self,
+        input_ids,
+        attention_mask: Optional[torch.LongTensor] = None,
         graph_data: Optional[Data] = None,
-        **kwargs
+        **kwargs,
     ):
 
         embedding = self.embedding(input_ids)
         all_hidden_states = []
         all_attn_score = []
-        
+
         hidden_states = embedding
-        
+
         hidden_states = self.input_mamba(
             hidden_states=hidden_states, attention_mask=attention_mask
         )
         hidden_states = self.layer_norm(hidden_states)
-        
+
         for layer in self.layers:
-            hidden_states= layer(
+            hidden_states = layer(
                 hidden_states=hidden_states, attention_mask=attention_mask
             )
             all_hidden_states.append(hidden_states)
             # all_attn_score.append(attn_score)
-        
+
         for layer in self.graph_layers:
-            hidden_states, graph_data= layer(
-                hidden_states=hidden_states, attention_mask=attention_mask, graph_data=graph_data
+            hidden_states, graph_data = layer(
+                hidden_states=hidden_states,
+                attention_mask=attention_mask,
+                graph_data=graph_data,
             )
             all_hidden_states.append(hidden_states)
             # all_attn_score.append(attn_score)
-           
 
         hidden_states = self.final_norm(hidden_states)
-        
+
         all_hidden_states = torch.stack(all_hidden_states, dim=1)
-        
+
         return (hidden_states, all_hidden_states, all_attn_score, graph_data)
+
 
 # MuMo pretrain model
 class MuMoPretrain(MambaPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.layer_hidden_states = []
-        self.no_self_attention = getattr(config, 'no_self_attention', False)
+        self.no_self_attention = getattr(config, "no_self_attention", False)
         if self.no_self_attention:
             print("Attention-free MuMo Model Used.")
             self.backbone = MuMoModel_without_self_attention(config=config)
@@ -183,9 +204,11 @@ class MuMoPretrain(MambaPreTrainedModel):
         attention_mask: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         graph_data: Optional[Data] = None,
-        **kwargs
+        **kwargs,
     ):
-        backbone_output = self.backbone(input_ids, attention_mask=attention_mask, graph_data=graph_data)
+        backbone_output = self.backbone(
+            input_ids, attention_mask=attention_mask, graph_data=graph_data
+        )
         logits = self.to_logits(backbone_output[0])
 
         loss = None
@@ -212,9 +235,11 @@ class MuMoFormerPretrain(MambaPreTrainedModel):
         attention_mask: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         graph_data: Optional[Data] = None,
-        **kwargs
+        **kwargs,
     ):
-        backbone_output = self.backbone(input_ids, attention_mask=attention_mask, graph_data=graph_data)
+        backbone_output = self.backbone(
+            input_ids, attention_mask=attention_mask, graph_data=graph_data
+        )
         logits = self.to_logits(backbone_output[0])
 
         loss = None
@@ -225,33 +250,37 @@ class MuMoFormerPretrain(MambaPreTrainedModel):
 
         return {"logits": logits, "loss": loss}
 
+
 # MuMo Fintune Model.
 class MuMoFinetune(MambaPreTrainedModel):
     def __init__(self, config, class_weight=None):
         super().__init__(config)
 
-        self.no_self_attention = getattr(config, 'no_self_attention', False)
+        self.no_self_attention = getattr(config, "no_self_attention", False)
         if self.no_self_attention:
             print("Attention-free MuMo Model Used.")
             self.backbone = MuMoModel_without_self_attention(config=config)
         else:
             self.backbone = MuMoModel(config=config)
         self.pooler = BertPooler(config)
-        self.use_graph_embeddings = getattr(config, 'use_graph_embeddings', False)
-        self.pool_method = getattr(config, 'pool_method', 'bert')
+        self.use_graph_embeddings = getattr(config, "use_graph_embeddings", False)
+        self.pool_method = getattr(config, "pool_method", "bert")
         if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
             self.pooler_b = BertPooler(config)
             print("Bipooler or mixpooler Activated.")
         self.class_weight = class_weight
-        
+
         self.task_type = config.task_type
         self.multi_mark = False
-        if  self.task_type == "regression":
+        if self.task_type == "regression":
             self.loss_fn = nn.MSELoss()
             self.output_size = 1
-        elif  self.task_type == "classification":
+            if config.output_size != -1:
+                self.output_size = config.output_size
+                self.multi_mark = True
+        elif self.task_type == "classification":
             self.output_size = 2
-                
+
             if self.class_weight is not None:
                 self.loss_fn = nn.CrossEntropyLoss(weight=self.class_weight)
             else:
@@ -260,7 +289,7 @@ class MuMoFinetune(MambaPreTrainedModel):
                 self.output_size = config.output_size
                 self.multi_mark = True
                 self.loss_fn = nn.BCEWithLogitsLoss()
-        
+
         hidden_size = config.hidden_size
         if self.use_graph_embeddings:
             hidden_size += config.hidden_size
@@ -277,36 +306,40 @@ class MuMoFinetune(MambaPreTrainedModel):
             )
 
         # self._initialize_parameters()
-        
+
     def initialize_parameters(self):
         for name, param in self.pooler.named_parameters():
-            if 'weight' in name:
+            if "weight" in name:
                 init.xavier_uniform_(param)
-            elif 'bias' in name:
+            elif "bias" in name:
                 init.zeros_(param)
         if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
             for name, param in self.pooler_b.named_parameters():
-                if 'weight' in name:
+                if "weight" in name:
                     init.xavier_uniform_(param)
-                elif 'bias' in name:
+                elif "bias" in name:
                     init.zeros_(param)
         for layer in self.task_head:
             if isinstance(layer, nn.Linear):
                 init.xavier_uniform_(layer.weight)
                 init.zeros_(layer.bias)
-                
+
     def forward(
         self,
         input_ids,
         attention_mask: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         graph_data: Optional[Data] = None,
-        **kwargs
+        **kwargs,
     ):
-        backbone_output = self.backbone(input_ids, attention_mask=attention_mask, graph_data=graph_data)
+        backbone_output = self.backbone(
+            input_ids, attention_mask=attention_mask, graph_data=graph_data
+        )
         pooled_output = self.pooler(backbone_output[0])
         if self.use_graph_embeddings:
-            graph_embeddings = global_add_pool(backbone_output[3].x, backbone_output[3].batch)
+            graph_embeddings = global_add_pool(
+                backbone_output[3].x, backbone_output[3].batch
+            )
             pooled_output = torch.cat([pooled_output, graph_embeddings], dim=1)
         if self.pool_method == "bipooler":
             pooled_output_b = self.pooler_b(reverse_seq_tensor(backbone_output[0]))
@@ -315,18 +348,23 @@ class MuMoFinetune(MambaPreTrainedModel):
             pooled_output_b = self.pooler_b(reverse_seq_tensor(backbone_output[0]))
             mean_pool = torch.mean(backbone_output[0], dim=1)
             max_pooled, _ = torch.max(backbone_output[0], dim=1)
-            pooled_output = torch.cat([pooled_output, pooled_output_b, mean_pool], dim=1)
-            
+            pooled_output = torch.cat(
+                [pooled_output, pooled_output_b, mean_pool], dim=1
+            )
+
         logits = self.task_head(pooled_output)
 
-        
         loss = None
         if labels is not None:
             labels = labels.to(logits.device)
 
             if self.task_type == "regression":
-                logits = logits.view(-1)
-                labels = labels.view(-1)
+                if not self.multi_mark:  # Single output
+                    logits = logits.view(-1)  # [B]
+                    labels = labels.view(-1)  # [B]
+                else:  # Multi output / Multi task
+                    logits = logits.view(-1, self.output_size)  # [B, T]
+                    labels = labels.view(-1, self.output_size)  # [B, T]
                 loss = self.loss_fn(logits, labels)
             elif self.task_type == "classification":
                 logits = logits.view(-1, self.output_size)
@@ -338,19 +376,19 @@ class MuMoFinetune(MambaPreTrainedModel):
                     labels = labels.to(dtype=torch.float)
 
                 loss = self.loss_fn(logits, labels)
-                
 
         return {"logits": logits, "loss": loss}
 
+
 # MuMo Fintune Model.
 class MuMoFinetunePairwise(MambaPreTrainedModel):
-    
+
     def __init__(self, config, class_weight=None):
         super().__init__(config)
 
         self.backbone = MuMoModel(config=config)
         self.pooler = BertPooler(config)
-        self.pool_method = getattr(config, 'pool_method', 'bert')
+        self.pool_method = getattr(config, "pool_method", "bert")
         if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
             self.pooler_b = BertPooler(config)
             print("Bipooler or mixpooler Activated.")
@@ -361,12 +399,12 @@ class MuMoFinetunePairwise(MambaPreTrainedModel):
         self.regression_weight = getattr(config, "regression_weight", 1.0)
         self.task_type = config.task_type
         self.multi_mark = False
-        if  self.task_type == "regression":
+        if self.task_type == "regression":
             self.loss_fn = nn.MSELoss()
             self.output_size = 1
-        elif  self.task_type == "classification":
+        elif self.task_type == "classification":
             self.output_size = 2
-                
+
             if self.class_weight is not None:
                 self.loss_fn = nn.CrossEntropyLoss(weight=self.class_weight)
             else:
@@ -375,7 +413,7 @@ class MuMoFinetunePairwise(MambaPreTrainedModel):
                 self.output_size = config.output_size
                 self.multi_mark = True
                 self.loss_fn = nn.BCEWithLogitsLoss()
-        
+
         self.task_head = nn.Sequential(
             nn.Linear(config.hidden_size, self.output_size),
         )
@@ -388,35 +426,35 @@ class MuMoFinetunePairwise(MambaPreTrainedModel):
                 nn.Linear(3 * config.hidden_size, self.output_size),
             )
         # self._initialize_parameters()
-        
+
     def initialize_parameters(self):
         for name, param in self.pooler.named_parameters():
-            if 'weight' in name:
+            if "weight" in name:
                 init.xavier_uniform_(param)
-            elif 'bias' in name:
+            elif "bias" in name:
                 init.zeros_(param)
         if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
             for name, param in self.pooler_b.named_parameters():
-                if 'weight' in name:
+                if "weight" in name:
                     init.xavier_uniform_(param)
-                elif 'bias' in name:
+                elif "bias" in name:
                     init.zeros_(param)
         for layer in self.task_head:
             if isinstance(layer, nn.Linear):
                 init.xavier_uniform_(layer.weight)
                 init.zeros_(layer.bias)
-    
+
     def compute_loss(self, model, inputs, return_outputs=False):
-            outputs = self(**inputs)
-            loss = outputs["loss"]
+        outputs = self(**inputs)
+        loss = outputs["loss"]
 
-            if "loss_pairwise" in outputs:
-                print(f"loss_pairwise: {outputs['loss_pairwise'].item():.4f}")
-            if "loss_regression" in outputs:
-                print(f"loss_regression: {outputs['loss_regression'].item():.4f}")
+        if "loss_pairwise" in outputs:
+            print(f"loss_pairwise: {outputs['loss_pairwise'].item():.4f}")
+        if "loss_regression" in outputs:
+            print(f"loss_regression: {outputs['loss_regression'].item():.4f}")
 
-            return (loss, outputs) if return_outputs else loss
-    
+        return (loss, outputs) if return_outputs else loss
+
     def forward(
         self,
         input_ids_a,
@@ -428,10 +466,12 @@ class MuMoFinetunePairwise(MambaPreTrainedModel):
         values_a: Optional[torch.LongTensor] = None,
         values_b: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
-        **kwargs
+        **kwargs,
     ):
-        # 编码第一条样本
-        output_a = self.backbone(input_ids_a, attention_mask=attention_mask_a, graph_data=graph_data_a)
+        # Encode first sample
+        output_a = self.backbone(
+            input_ids_a, attention_mask=attention_mask_a, graph_data=graph_data_a
+        )
         pooled_a = self.pooler(output_a[0])
         if self.pool_method == "bipooler":
             pooled_bi_a = self.pooler_b(reverse_seq_tensor(output_a[0]))
@@ -444,8 +484,10 @@ class MuMoFinetunePairwise(MambaPreTrainedModel):
 
         score_a = self.task_head(pooled_a).view(-1)  # regression scalar
 
-        # 编码第二条样本
-        output_b = self.backbone(input_ids_b, attention_mask=attention_mask_b, graph_data=graph_data_b)
+        # Encode second sample
+        output_b = self.backbone(
+            input_ids_b, attention_mask=attention_mask_b, graph_data=graph_data_b
+        )
         pooled_b = self.pooler(output_b[0])
         if self.pool_method == "bipooler":
             pooled_bi_b = self.pooler_b(reverse_seq_tensor(output_b[0]))
@@ -472,11 +514,15 @@ class MuMoFinetunePairwise(MambaPreTrainedModel):
         if values_a is not None and values_b is not None:
             # Ensure type and device consistency
             if not torch.is_tensor(values_a):
-                values_a = torch.tensor(values_a, dtype=score_a.dtype, device=score_a.device)
+                values_a = torch.tensor(
+                    values_a, dtype=score_a.dtype, device=score_a.device
+                )
             else:
                 values_a = values_a.to(score_a.device, dtype=score_a.dtype)
             if not torch.is_tensor(values_b):
-                values_b = torch.tensor(values_b, dtype=score_b.dtype, device=score_b.device)
+                values_b = torch.tensor(
+                    values_b, dtype=score_b.dtype, device=score_b.device
+                )
             else:
                 values_b = values_b.to(score_b.device, dtype=score_b.dtype)
 
@@ -486,7 +532,9 @@ class MuMoFinetunePairwise(MambaPreTrainedModel):
 
         # Combine losses if both are available, otherwise use the one that exists
         if pair_loss is not None and reg_loss is not None:
-            total_loss = self.pairwise_weight * pair_loss + self.regression_weight * reg_loss
+            total_loss = (
+                self.pairwise_weight * pair_loss + self.regression_weight * reg_loss
+            )
         elif pair_loss is None and reg_loss is not None:
             total_loss = reg_loss
         # If both None, total_loss remains None
@@ -513,25 +561,34 @@ class TransformerMuMoModel(nn.Module):
         # )
 
         # Replace AttentionMambaBlock with standard transformer blocks
-        self.layers = nn.ModuleList([
-            nn.ModuleDict({
-                "attn_ln": nn.LayerNorm(config.hidden_size),
-                "attn": BertAttention(config),
-                "ffn_ln": nn.LayerNorm(config.hidden_size),
-                "ffn": nn.Sequential(
-                    nn.Linear(config.hidden_size, config.intermediate_size),
-                    nn.GELU(),
-                    nn.Linear(config.intermediate_size, config.hidden_size)
+        self.layers = nn.ModuleList(
+            [
+                nn.ModuleDict(
+                    {
+                        "attn_ln": nn.LayerNorm(config.hidden_size),
+                        "attn": BertAttention(config),
+                        "ffn_ln": nn.LayerNorm(config.hidden_size),
+                        "ffn": nn.Sequential(
+                            nn.Linear(config.hidden_size, config.intermediate_size),
+                            nn.GELU(),
+                            nn.Linear(config.intermediate_size, config.hidden_size),
+                        ),
+                    }
                 )
-            })
-            for _ in range(config.num_hidden_layers // 2)
-        ])
-
+                for _ in range(config.num_hidden_layers // 2)
+            ]
+        )
 
         # Use TransformerFusionBlock instead of HierarchicalFusionBlock
         self.graph_layers = nn.ModuleList(
             [
-                TransformerFusionBlock(config, layer_idx=idx, global_inject=True, brics=config.brics, geo_operation=config.geo_operation)
+                TransformerFusionBlock(
+                    config,
+                    layer_idx=idx,
+                    global_inject=True,
+                    brics=config.brics,
+                    geo_operation=config.geo_operation,
+                )
                 for idx in range(config.num_hidden_layers // 2)
             ]
         )
@@ -547,46 +604,45 @@ class TransformerMuMoModel(nn.Module):
         self.embedding = new_embeddings
 
     def forward(
-        self, 
-        input_ids, 
-        attention_mask: Optional[torch.LongTensor] = None, 
+        self,
+        input_ids,
+        attention_mask: Optional[torch.LongTensor] = None,
         graph_data: Optional[Data] = None,
-        **kwargs
+        **kwargs,
     ):
         embedding = self.embedding(input_ids)
         all_hidden_states = []
         all_attn_score = []
-        
+
         hidden_states = embedding
-        
-        
+
         # Process through transformer layers
         for layer in self.layers:
             if attention_mask is not None and attention_mask.dim() == 2:
                 attention_mask = attention_mask[:, None, None, :]  # [B, 1, 1, L]
             attn_out = layer["attn"](
                 hidden_states=layer["attn_ln"](hidden_states),
-                attention_mask=attention_mask
+                attention_mask=attention_mask,
             )
             hidden_states = hidden_states + self.dropout(attn_out[0])
             ffn_out = layer["ffn"](layer["ffn_ln"](hidden_states))
             hidden_states = hidden_states + self.dropout(ffn_out)
-            
+
             all_hidden_states.append(hidden_states)
-        
+
         # Process through graph layers
         for layer in self.graph_layers:
             hidden_states, graph_data = layer(
                 hidden_states=hidden_states,
                 attention_mask=attention_mask,
-                graph_data=graph_data
+                graph_data=graph_data,
             )
             all_hidden_states.append(hidden_states)
 
         hidden_states = self.final_norm(hidden_states)
-        
+
         all_hidden_states = torch.stack(all_hidden_states, dim=1)
-        
+
         return (hidden_states, all_hidden_states, all_attn_score)
 
 
@@ -596,20 +652,20 @@ class MuMoFinetuneFormer(MambaPreTrainedModel):
 
         self.backbone = TransformerMuMoModel(config=config)
         self.pooler = BertPooler(config)
-        self.pool_method = getattr(config, 'pool_method', 'bert')
+        self.pool_method = getattr(config, "pool_method", "bert")
         if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
             self.pooler_b = BertPooler(config)
             print("Bipooler or mixpooler Activated.")
         self.class_weight = class_weight
-        
+
         self.task_type = config.task_type
         self.multi_mark = False
-        if  self.task_type == "regression":
+        if self.task_type == "regression":
             self.loss_fn = nn.MSELoss()
             self.output_size = 1
-        elif  self.task_type == "classification":
+        elif self.task_type == "classification":
             self.output_size = 2
-                
+
             if self.class_weight is not None:
                 self.loss_fn = nn.CrossEntropyLoss(weight=self.class_weight)
             else:
@@ -618,7 +674,7 @@ class MuMoFinetuneFormer(MambaPreTrainedModel):
                 self.output_size = config.output_size
                 self.multi_mark = True
                 self.loss_fn = nn.BCEWithLogitsLoss()
-        
+
         self.task_head = nn.Sequential(
             nn.Linear(config.hidden_size, self.output_size),
         )
@@ -631,33 +687,35 @@ class MuMoFinetuneFormer(MambaPreTrainedModel):
                 nn.Linear(3 * config.hidden_size, self.output_size),
             )
         # self._initialize_parameters()
-        
+
     def initialize_parameters(self):
         for name, param in self.pooler.named_parameters():
-            if 'weight' in name:
+            if "weight" in name:
                 init.xavier_uniform_(param)
-            elif 'bias' in name:
+            elif "bias" in name:
                 init.zeros_(param)
         if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
             for name, param in self.pooler_b.named_parameters():
-                if 'weight' in name:
+                if "weight" in name:
                     init.xavier_uniform_(param)
-                elif 'bias' in name:
+                elif "bias" in name:
                     init.zeros_(param)
         for layer in self.task_head:
             if isinstance(layer, nn.Linear):
                 init.xavier_uniform_(layer.weight)
                 init.zeros_(layer.bias)
-                
+
     def forward(
         self,
         input_ids,
         attention_mask: Optional[torch.LongTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         graph_data: Optional[Data] = None,
-        **kwargs
+        **kwargs,
     ):
-        backbone_output = self.backbone(input_ids, attention_mask=attention_mask, graph_data=graph_data)
+        backbone_output = self.backbone(
+            input_ids, attention_mask=attention_mask, graph_data=graph_data
+        )
         pooled_output = self.pooler(backbone_output[0])
         if self.pool_method == "bipooler":
             pooled_output_b = self.pooler_b(reverse_seq_tensor(backbone_output[0]))
@@ -666,11 +724,12 @@ class MuMoFinetuneFormer(MambaPreTrainedModel):
             pooled_output_b = self.pooler_b(reverse_seq_tensor(backbone_output[0]))
             mean_pool = torch.mean(backbone_output[0], dim=1)
             max_pooled, _ = torch.max(backbone_output[0], dim=1)
-            pooled_output = torch.cat([pooled_output, pooled_output_b, mean_pool], dim=1)
-            
+            pooled_output = torch.cat(
+                [pooled_output, pooled_output_b, mean_pool], dim=1
+            )
+
         logits = self.task_head(pooled_output)
 
-        
         loss = None
         if labels is not None:
             labels = labels.to(logits.device)
@@ -689,8 +748,133 @@ class MuMoFinetuneFormer(MambaPreTrainedModel):
                     labels = labels.to(dtype=torch.float)
 
                 loss = self.loss_fn(logits, labels)
-                
 
         return {"logits": logits, "loss": loss}
 
 
+# MuMo FintuneReaction Model, this was proved to be not useful, don't use it.
+class MuMoFinetuneReaction(MambaPreTrainedModel):
+    def __init__(self, config, class_weight=None):
+        super().__init__(config)
+
+        self.no_self_attention = getattr(config, "no_self_attention", False)
+        if self.no_self_attention:
+            print("Attention-free MuMo Model Used.")
+            self.backbone = MuMoModel_without_self_attention(config=config)
+        else:
+            self.backbone = MuMoModel(config=config)
+
+        self.num_input_smiles = config.num_input_smiles
+
+        self.pooler = nn.ModuleList()
+        for i in range(self.num_input_smiles):
+            self.pooler.append(BertPooler(config))
+
+        self.use_graph_embeddings = getattr(config, "use_graph_embeddings", False)
+        self.pool_method = getattr(config, "pool_method", "bert")
+        if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
+            self.pooler_b = BertPooler(config)
+            print("Bipooler or mixpooler Activated.")
+        self.class_weight = class_weight
+
+        self.task_type = config.task_type
+        self.multi_mark = False
+        if self.task_type == "regression":
+            self.loss_fn = nn.MSELoss()
+            self.output_size = 1
+            if config.output_size != -1:
+                self.output_size = config.output_size
+                self.multi_mark = True
+        elif self.task_type == "classification":
+            self.output_size = 2
+
+            if self.class_weight is not None:
+                self.loss_fn = nn.CrossEntropyLoss(weight=self.class_weight)
+            else:
+                self.loss_fn = nn.CrossEntropyLoss()
+            if config.output_size != -1:
+                self.output_size = config.output_size
+                self.multi_mark = True
+                self.loss_fn = nn.BCEWithLogitsLoss()
+
+        hidden_size = config.hidden_size
+        if self.use_graph_embeddings:
+            hidden_size += config.hidden_size
+        self.task_head = nn.Sequential(
+            nn.Linear(self.num_input_smiles * hidden_size, self.output_size)
+        )
+        if self.pool_method == "bipooler":
+            self.task_head = nn.Sequential(
+                nn.Linear(2 * hidden_size, self.output_size),
+            )
+        if self.pool_method == "mixpooler":
+            self.task_head = nn.Sequential(
+                nn.Linear(3 * hidden_size, self.output_size),
+            )
+
+        # self._initialize_parameters()
+
+    def initialize_parameters(self):
+        for name, param in self.pooler.named_parameters():
+            if "weight" in name:
+                init.xavier_uniform_(param)
+            elif "bias" in name:
+                init.zeros_(param)
+        if self.pool_method == "bipooler" or self.pool_method == "mixpooler":
+            for name, param in self.pooler_b.named_parameters():
+                if "weight" in name:
+                    init.xavier_uniform_(param)
+                elif "bias" in name:
+                    init.zeros_(param)
+        for layer in self.task_head:
+            if isinstance(layer, nn.Linear):
+                init.xavier_uniform_(layer.weight)
+                init.zeros_(layer.bias)
+
+    def forward(
+        self,
+        input_ids,
+        attention_mask: Optional[torch.LongTensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+        graph_data: Optional[Data] = None,
+        **kwargs,
+    ):
+        pooled_outputs = []
+        for i in range(self.num_input_smiles):
+            import pdb
+
+            pdb.set_trace()
+            backbone_output = self.backbone(
+                input_ids[i], attention_mask=attention_mask[i], graph_data=graph_data[i]
+            )
+            pooled_output = self.pooler[i](backbone_output[0])
+            pooled_outputs.append(pooled_output)
+
+        pooled_output = torch.cat(pooled_outputs, dim=1)
+
+        logits = self.task_head(pooled_output)
+
+        loss = None
+        if labels is not None:
+            labels = labels.to(logits.device)
+
+            if self.task_type == "regression":
+                if not self.multi_mark:  # Single output
+                    logits = logits.view(-1)  # [B]
+                    labels = labels.view(-1)  # [B]
+                else:  # Multi output / Multi task
+                    logits = logits.view(-1, self.output_size)  # [B, T]
+                    labels = labels.view(-1, self.output_size)  # [B, T]
+                loss = self.loss_fn(logits, labels)
+            elif self.task_type == "classification":
+                logits = logits.view(-1, self.output_size)
+                if not self.multi_mark:
+                    labels = labels.view(-1)
+                    labels = labels.long()
+                elif self.multi_mark:
+                    labels = labels.view(-1, self.output_size)
+                    labels = labels.to(dtype=torch.float)
+
+                loss = self.loss_fn(logits, labels)
+
+        return {"logits": logits, "loss": loss}

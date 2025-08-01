@@ -7,7 +7,7 @@ MODEL_NAME=mumo
 TASK_NAME=PPBR_AZ
 MODEL_CLASS=MuMoFinetune
 DATATYPE=sft_tdc_geo
-CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg_dual_embed.json
 
 
 # Base config
@@ -27,13 +27,13 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29507 --include localhost:7 ${BASE_DIR}/train/finetune.py \
     --run_name ${filename} \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
-    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.csv \
-    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.csv \
-    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.csv \
+    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.jsonl \
+    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.jsonl \
+    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.jsonl \
     --data_column_name smiles \
     --label_column_name Y \
     --normlization True \

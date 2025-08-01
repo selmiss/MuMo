@@ -4,22 +4,25 @@ from torch_geometric.nn import GCNConv
 from torch_geometric.nn import MessagePassing, global_mean_pool
 from torch_geometric.data import Data
 
+
 def graph2batch_sequence(graph_hidden_states, batch):
     device = graph_hidden_states.device
-    
+
     num_graphs = batch.max().item() + 1
     max_nodes = max((batch == i).sum().item() for i in range(batch.max().item() + 1))
 
-
-    padded_features = torch.zeros(num_graphs, max_nodes, graph_hidden_states.size(1), device=device)
+    padded_features = torch.zeros(
+        num_graphs, max_nodes, graph_hidden_states.size(1), device=device
+    )
     attention_mask = torch.zeros(num_graphs, max_nodes, device=device)
-    
+
     for i in range(num_graphs):
         graph_node_features = graph_hidden_states[batch == i]
-        padded_features[i, :graph_node_features.size(0), :] = graph_node_features
-        attention_mask[i, :graph_node_features.size(0)] = 1
+        padded_features[i, : graph_node_features.size(0), :] = graph_node_features
+        attention_mask[i, : graph_node_features.size(0)] = 1
 
     return padded_features, attention_mask
+
 
 def sequence2batch_graph(padded_features, attention_mask):
     device = padded_features.device
@@ -36,7 +39,6 @@ def sequence2batch_graph(padded_features, attention_mask):
     batch = graph_indices[flat_mask]
 
     return graph_hidden_states
-
 
 
 class GCN(torch.nn.Module):
@@ -62,16 +64,22 @@ class MPNN(MessagePassing):
             edge_dim (int): Dimension of edge features.
             hidden_dim (int): Dimension of hidden layers.
         """
-        super(MPNN, self).__init__(aggr='add')  # Aggregation method: 'add', 'mean', or 'max'
+        super(MPNN, self).__init__(
+            aggr="add"
+        )  # Aggregation method: 'add', 'mean', or 'max'
         self.message_mlp = torch.nn.Sequential(
-            torch.nn.Linear(2 * node_dim + edge_dim, hidden_dim),  # Input: concatenated node and edge features
+            torch.nn.Linear(
+                2 * node_dim + edge_dim, hidden_dim
+            ),  # Input: concatenated node and edge features
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, hidden_dim)
+            torch.nn.Linear(hidden_dim, hidden_dim),
         )
         self.update_mlp = torch.nn.Sequential(
-            torch.nn.Linear(node_dim + hidden_dim, hidden_dim),  # Input: concatenated current node and aggregated message
+            torch.nn.Linear(
+                node_dim + hidden_dim, hidden_dim
+            ),  # Input: concatenated current node and aggregated message
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, hidden_dim)
+            torch.nn.Linear(hidden_dim, hidden_dim),
         )
 
     def forward(self, x, edge_index, edge_attr):
@@ -96,7 +104,9 @@ class MPNN(MessagePassing):
         Returns:
             Tensor: Messages [num_edges, hidden_dim].
         """
-        msg_input = torch.cat([x_i, x_j, edge_attr], dim=-1)  # Concatenate target, source, and edge features
+        msg_input = torch.cat(
+            [x_i, x_j, edge_attr], dim=-1
+        )  # Concatenate target, source, and edge features
         return self.message_mlp(msg_input)
 
     def update(self, aggr_out, x):
@@ -108,8 +118,11 @@ class MPNN(MessagePassing):
         Returns:
             Tensor: Updated node features [num_nodes, hidden_dim].
         """
-        update_input = torch.cat([x, aggr_out], dim=-1)  # Concatenate current node features and aggregated messages
+        update_input = torch.cat(
+            [x, aggr_out], dim=-1
+        )  # Concatenate current node features and aggregated messages
         return self.update_mlp(update_input)
+
 
 class MultiLayerMPNN(torch.nn.Module):
     def __init__(self, node_dim, edge_dim, hidden_dim, num_layers):
@@ -124,16 +137,24 @@ class MultiLayerMPNN(torch.nn.Module):
         """
         super(MultiLayerMPNN, self).__init__()
         self.layers = torch.nn.ModuleList(
-            [MPNN(node_dim if i == 0 else hidden_dim, edge_dim, hidden_dim) for i in range(num_layers)]
+            [
+                MPNN(node_dim if i == 0 else hidden_dim, edge_dim, hidden_dim)
+                for i in range(num_layers)
+            ]
         )
         # self.fc = torch.nn.Linear(hidden_dim, out_dim)  # Final output layer
 
     def forward(self, data):
-        
-        x, edge_index, edge_attr, batch = data.x, data.edge_index, data.edge_attr, data.batch
+
+        x, edge_index, edge_attr, batch = (
+            data.x,
+            data.edge_index,
+            data.edge_attr,
+            data.batch,
+        )
         x = x.float()
         edge_attr = edge_attr.float()
-        
+
         for layer in self.layers:
             x = layer(x, edge_index, edge_attr)
             x = F.relu(x)  # Activation function

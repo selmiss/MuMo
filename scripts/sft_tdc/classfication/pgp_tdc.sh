@@ -4,9 +4,9 @@
 export PYTHONPATH=${BASE_DIR}
 
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
-MODEL_NAME=mumo
+MODEL_NAME=mumo_former
 TASK_NAME=Pgp_Broccatelli
-MODEL_CLASS=MuMoFinetune
+MODEL_CLASS=MuMoFinetuneFormer
 DATATYPE=sft_tdc_geo
 
 # Base config
@@ -16,7 +16,7 @@ export WANDB_PROJECT="NeurIPS_Rebuttal_SFT"
 export WANDB_DIR="${output_model}/wandb"
 BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
-CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_dual_embed.json
+CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls.json
 
 # Keep
 SCRIPT_PATH="$(realpath "$0")"
@@ -27,7 +27,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29502 --include localhost:2 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.py \
     --run_name ${filename} \
     --model_class ${MODEL_CLASS} \
     --task_type classification \

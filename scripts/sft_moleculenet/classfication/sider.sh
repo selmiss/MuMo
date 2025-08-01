@@ -35,9 +35,9 @@ export WANDB_DIR="${output_model}/wandb"
         --task_type classification \
         --config_name ${CONFIG_NAME} \
         --model_name_or_path ${BASE_MODEL} \
-        --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.csv \
-        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.csv \
-        --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
+        --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.jsonl \
+        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.jsonl \
+        --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.jsonl \
         --data_column_name smiles \
         --label_column_name "Hepatobiliary disorders" "Metabolism and nutrition disorders" "Product issues" "Eye disorders" "Investigations" "Musculoskeletal and connective tissue disorders" "Gastrointestinal disorders" "Social circumstances" "Immune system disorders" "Reproductive system and breast disorders" "Neoplasms benign, malignant and unspecified (incl cysts and polyps)" "General disorders and administration site conditions" "Endocrine disorders" "Surgical and medical procedures" "Vascular disorders" "Blood and lymphatic system disorders" "Skin and subcutaneous tissue disorders" "Congenital, familial and genetic disorders" "Infections and infestations" "Respiratory, thoracic and mediastinal disorders" "Psychiatric disorders" "Renal and urinary disorders" "Pregnancy, puerperium and perinatal conditions" "Ear and labyrinth disorders" "Cardiac disorders" "Nervous system disorders" "Injury, poisoning and procedural complications" \
         --per_device_train_batch_size 1 \

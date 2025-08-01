@@ -227,7 +227,7 @@ class DataTrainingArguments:
                     "json",
                     "txt",
                     "pt",
-                    "jsonl"
+                    "jsonl",
                 ], "`train_file` should be a csv, a json, a pt, or a txt file."
             if self.validation_files is not None:
                 extension = self.validation_files[0].split(".")[-1]
@@ -236,8 +236,9 @@ class DataTrainingArguments:
                     "json",
                     "txt",
                     "pt",
-                    "jsonl"
+                    "jsonl",
                 ], "`validation_file` should be a csv, a json, a pt, or a txt file."
+
 
 from transformers import DataCollatorForLanguageModeling
 from torch_geometric.data import Batch
@@ -248,22 +249,23 @@ type_map = {
     "x": torch.float32,
     "edge_index": torch.int64,
     "edge_attr": torch.float32,
-    'ba_edge_index': torch.int64, 
-    'ba_edge_attr': torch.float32, 
-    'fra_edge_index':  torch.int64, 
-    'fra_edge_attr': torch.float32, 
-    'cluster_idx': torch.int64, 
-    'bafra_edge_index': torch.int64, 
-    'bafra_edge_attr':  torch.float32,
-    "smiles": str, 
+    "ba_edge_index": torch.int64,
+    "ba_edge_attr": torch.float32,
+    "fra_edge_index": torch.int64,
+    "fra_edge_attr": torch.float32,
+    "cluster_idx": torch.int64,
+    "bafra_edge_index": torch.int64,
+    "bafra_edge_attr": torch.float32,
+    "smiles": str,
 }
+
 
 class CustomDataCollatorForLanguageAndGraph(DataCollatorForLanguageModeling):
     def __init__(self, tokenizer, max_length=512, mlm=True, mlm_probability=0.15):
         """
         A custom collator that combines the functionality of DataCollatorForLanguageModeling
         and additional processing for custom data (e.g., graph structures).
-        
+
         Args:
             tokenizer: Pretrained tokenizer for text data.
             max_length: Maximum sequence length for tokenized text.
@@ -288,7 +290,7 @@ class CustomDataCollatorForLanguageAndGraph(DataCollatorForLanguageModeling):
         )
         input_ids = torch.tensor(tokenized["input_ids"])
         attention_mask = torch.tensor(tokenized["attention_mask"])
-        
+
         # Apply MLM (if enabled) using the parent class's method
         if self.mlm:
             input_ids, labels = self.torch_mask_tokens(input_ids)
@@ -300,8 +302,7 @@ class CustomDataCollatorForLanguageAndGraph(DataCollatorForLanguageModeling):
                 random_idx = torch.randint(0, seq_len, (1,)).item()
                 labels[i][random_idx] = input_ids[i][random_idx]
                 input_ids[i][random_idx] = self.tokenizer.mask_token_id
-        
-        
+
         # Graph data processor
         def convert_value(key, value):
             if key in type_map:
@@ -310,10 +311,15 @@ class CustomDataCollatorForLanguageAndGraph(DataCollatorForLanguageModeling):
                     return converter(value)
                 else:
                     return torch.tensor(value, dtype=converter)
-            return value 
-        
+            return value
+
         batch_data = [
-            Data(**{key: convert_value(key, value) if isinstance(value, list) else value for key, value in data_dict.items()})
+            Data(
+                **{
+                    key: convert_value(key, value) if isinstance(value, list) else value
+                    for key, value in data_dict.items()
+                }
+            )
             for data_dict in batch
         ]
         graph_batch = TriBatch.from_data_list(batch_data)
@@ -483,7 +489,7 @@ def main():
             **dataset_args,
         )
     else:
-        if extension == "jsonl": 
+        if extension == "jsonl":
             extension = "json"
         raw_datasets = load_dataset(
             extension,
@@ -506,17 +512,17 @@ def main():
         # For JSONL files, we don't need to process the SMILES
         if extension == "jsonl":
             return example
-            
-        smiles = example['smiles']
+
+        smiles = example["smiles"]
         graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
         if graph_data is None:
             return None
         # Create a new dict with graph data while preserving all other columns
         result = {
-            'smiles': smiles,
-            'x': graph_data.x.tolist(),
-            'edge_index': graph_data.edge_index.tolist(),
-            'edge_attr': graph_data.edge_attr.tolist(),
+            "smiles": smiles,
+            "x": graph_data.x.tolist(),
+            "edge_index": graph_data.edge_index.tolist(),
+            "edge_attr": graph_data.edge_attr.tolist(),
         }
         # Preserve all other columns
         for key, value in example.items():
@@ -547,15 +553,15 @@ def main():
             process_smiles_to_graph,
             num_proc=data_args.preprocessing_num_workers,
             remove_columns=raw_datasets["train"].column_names,
-            desc="Processing train dataset"
+            desc="Processing train dataset",
         )
-    
+
     if training_args.do_eval:
         raw_datasets["validation"] = raw_datasets["validation"].map(
             process_smiles_to_graph,
             num_proc=data_args.preprocessing_num_workers,
             remove_columns=raw_datasets["validation"].column_names,
-            desc="Processing validation dataset"
+            desc="Processing validation dataset",
         )
     ### End Load Data Files
 
@@ -585,7 +591,6 @@ def main():
             eval_dataset = eval_dataset.select(range(max_eval_samples))
         print(training_args.local_rank, "end select eval_dataset")
     ### End Process Data
-
 
     print(training_args.local_rank, "Initialize our Trainer")
     training_args.remove_unused_columns = False

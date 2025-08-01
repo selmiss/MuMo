@@ -33,9 +33,9 @@ deepspeed --master_port 29507 --include localhost:7 ${BASE_DIR}/train/finetune.p
     --model_name_or_path ${BASE_MODEL} \
     --pool_method bipooler \
     --tokenizer_name ${BASE_MODEL} \
-    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.csv \
-    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.csv \
-    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.csv \
+    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.jsonl \
+    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.jsonl \
+    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.jsonl \
     --data_column_name smiles \
     --label_column_name Y \
     --per_device_train_batch_size 4 \

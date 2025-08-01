@@ -14,7 +14,7 @@ def sample_operation(tokenized_datasets, low_bound, high_bound):
     train_dataset_oversampled = concatenate_datasets(
         [train_dataset, low_tail_oversampled, high_tail_oversampled]
     )
-    
+
     tokenized_datasets["train"] = train_dataset_oversampled
-    
+
     return tokenized_datasets

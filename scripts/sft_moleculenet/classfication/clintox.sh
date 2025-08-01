@@ -33,9 +33,9 @@ export WANDB_DIR="${output_model}/wandb"
         --task_type classification \
         --output_size 2 \
         --model_name_or_path ${BASE_MODEL} \
-        --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.csv \
-        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.csv \
-        --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
+        --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.jsonl \
+        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.jsonl \
+        --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.jsonl \
         --data_column_name smiles \
         --label_column_name FDA_APPROVED CT_TOX \
         --per_device_train_batch_size 1 \

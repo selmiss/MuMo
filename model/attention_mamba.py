@@ -8,6 +8,7 @@ from transformers.models.mamba.modeling_mamba import (
 import torch
 from typing import Optional
 
+
 class MambaBlock_without_self_attention(nn.Module):
     def __init__(self, config, layer_idx):
         super().__init__()
@@ -20,7 +21,7 @@ class MambaBlock_without_self_attention(nn.Module):
     def forward(self, hidden_states, attention_mask: Optional[torch.LongTensor] = None):
 
         residual = hidden_states
-        
+
         # attention_output = self.attention(hidden_states=hidden_states, attention_mask=attention_mask[:, None, None, :])
 
         # hidden_states = attention_output[0] + residual
@@ -29,8 +30,9 @@ class MambaBlock_without_self_attention(nn.Module):
             hidden_states=hidden_states, attention_mask=attention_mask
         )
         hidden_states = self.layer_norm(hidden_states)
-        
+
         return hidden_states
+
 
 class AttentionMambaBlock(nn.Module):
     def __init__(self, config, layer_idx):
@@ -44,8 +46,10 @@ class AttentionMambaBlock(nn.Module):
     def forward(self, hidden_states, attention_mask: Optional[torch.LongTensor] = None):
 
         residual = hidden_states
-        
-        attention_output = self.attention(hidden_states=hidden_states, attention_mask=attention_mask[:, None, None, :])
+
+        attention_output = self.attention(
+            hidden_states=hidden_states, attention_mask=attention_mask[:, None, None, :]
+        )
 
         hidden_states = attention_output[0] + residual
 
@@ -53,5 +57,5 @@ class AttentionMambaBlock(nn.Module):
             hidden_states=hidden_states, attention_mask=attention_mask
         )
         hidden_states = self.layer_norm(hidden_states)
-        
+
         return hidden_states

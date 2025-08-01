@@ -3,7 +3,7 @@ import os
 import sys
 import random
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict 
+from typing import Optional, List, Dict
 import numpy as np
 import datasets
 import torch
@@ -38,79 +38,103 @@ logger = logging.getLogger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_CAUSAL_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
+
 class PairwiseTrainer(Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Initialize loss accumulators
         self.loss_pairwise_accumulator = []
         self.loss_regression_accumulator = []
-        
-    def compute_loss(self, model, inputs, return_outputs=False,  **kwargs):
-        # 调用模型得到所有输出
-        outputs = model(**inputs)                   # 你的 outputs 里有 loss / loss_pairwise / loss_regression
+
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        # Call model to get all outputs
+        outputs = model(
+            **inputs
+        )  # Your outputs contain loss / loss_pairwise / loss_regression
         loss = outputs["loss"]
 
         # Store losses as instance attributes for later access
         self.current_loss_pairwise = outputs["loss_pairwise"].item()
         self.current_loss_regression = outputs["loss_regression"].item()
-        
+
         # Accumulate losses for averaging
         self.loss_pairwise_accumulator.append(self.current_loss_pairwise)
         self.loss_regression_accumulator.append(self.current_loss_regression)
 
         return (loss, outputs) if return_outputs else loss
 
-    def _maybe_log_save_evaluate(self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval):
-        if self.control.should_log and self.state.global_step > self._globalstep_last_logged:
-            
+    def _maybe_log_save_evaluate(
+        self, tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval
+    ):
+        if (
+            self.control.should_log
+            and self.state.global_step > self._globalstep_last_logged
+        ):
+
             logs: Dict[str, float] = {}
-            if hasattr(self, 'current_loss_pairwise') and hasattr(self, 'current_loss_regression'):
+            if hasattr(self, "current_loss_pairwise") and hasattr(
+                self, "current_loss_regression"
+            ):
                 # all_gather + mean() to get average loss over all processes
                 tr_loss_scalar = self._nested_gather(tr_loss).mean().item()
-                
 
                 # reset tr_loss to zero
                 tr_loss -= tr_loss
 
-                logs["loss"] = round(tr_loss_scalar / (self.state.global_step - self._globalstep_last_logged), 4)
+                logs["loss"] = round(
+                    tr_loss_scalar
+                    / (self.state.global_step - self._globalstep_last_logged),
+                    4,
+                )
                 if grad_norm is not None:
-                    logs["grad_norm"] = grad_norm.detach().item() if isinstance(grad_norm, torch.Tensor) else grad_norm
+                    logs["grad_norm"] = (
+                        grad_norm.detach().item()
+                        if isinstance(grad_norm, torch.Tensor)
+                        else grad_norm
+                    )
                 logs["learning_rate"] = self._get_learning_rate()
 
                 self._total_loss_scalar += tr_loss_scalar
                 self._globalstep_last_logged = self.state.global_step
                 self.store_flos()
                 # Add custom losses to the standard logs
-                
+
                 # Add averaged losses if we have accumulated data
                 if self.loss_pairwise_accumulator:
-                    logs["avg_loss_pairwise"] = sum(self.loss_pairwise_accumulator) / len(self.loss_pairwise_accumulator)
-                    logs["avg_loss_regression"] = sum(self.loss_regression_accumulator) / len(self.loss_regression_accumulator)
-                    
+                    logs["avg_loss_pairwise"] = sum(
+                        self.loss_pairwise_accumulator
+                    ) / len(self.loss_pairwise_accumulator)
+                    logs["avg_loss_regression"] = sum(
+                        self.loss_regression_accumulator
+                    ) / len(self.loss_regression_accumulator)
+
                     # Clear accumulators after logging
                     self.loss_pairwise_accumulator = []
                     self.loss_regression_accumulator = []
-                
+
                 self.log(logs)
-        
+
         # Call the parent method to handle standard logging
-        super()._maybe_log_save_evaluate(tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval)
+        super()._maybe_log_save_evaluate(
+            tr_loss, grad_norm, model, trial, epoch, ignore_keys_for_eval
+        )
 
     def log_custom_metrics(self, metrics_dict, step=None):
         """Custom logging method with more control"""
         if step is None:
             step = self.state.global_step
-            
+
         # Log to console
         print(f"Step {step}: {metrics_dict}")
-        
+
         # Log using the standard trainer log method
         self.log(metrics_dict)
-        
+
         # Additional custom logging (optional)
-        if hasattr(self, 'custom_logger'):
+        if hasattr(self, "custom_logger"):
             self.custom_logger.log(metrics_dict, step=step)
-    
+
+
 @dataclass
 class ModelArguments:
     """
@@ -200,11 +224,7 @@ class ModelArguments:
     )
     output_size: Optional[int] = field(
         default=-1,
-        metadata={
-            "help": (
-                "Specify the model's output size."
-            )
-        },
+        metadata={"help": ("Specify the model's output size.")},
     )
     torch_dtype: Optional[str] = field(
         default=None,
@@ -377,18 +397,18 @@ type_map = {
     "x": torch.float32,
     "edge_index": torch.int64,
     "edge_attr": torch.float32,
-    'ba_edge_index': torch.int64, 
-    'ba_edge_attr': torch.float32, 
-    'fra_edge_index':  torch.int64, 
-    'fra_edge_attr': torch.float32, 
-    'cluster_idx': torch.int64, 
-    'bafra_edge_index': torch.int64, 
-    'bafra_edge_attr':  torch.float32,
-    "smiles": str, 
+    "ba_edge_index": torch.int64,
+    "ba_edge_attr": torch.float32,
+    "fra_edge_index": torch.int64,
+    "fra_edge_attr": torch.float32,
+    "cluster_idx": torch.int64,
+    "bafra_edge_index": torch.int64,
+    "bafra_edge_attr": torch.float32,
+    "smiles": str,
 }
 
-def main():
 
+def main():
 
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
@@ -448,7 +468,7 @@ def main():
 
     # Set seed before initializing model.
     set_seed(training_args.seed)
-    
+
     ## Start load data.
     if True:
         data_files = {}
@@ -459,7 +479,7 @@ def main():
             data_files["validation"] = data_args.validation_files
         if data_args.test_files is not None:
             data_files["test"] = data_args.test_files
-            
+
         # Identify extension
         if "train" in data_files and len(data_files["train"]) > 0:
             extension = data_files["train"][0].split(".")[-1]
@@ -469,25 +489,25 @@ def main():
             raise ValueError(
                 "No valid training or validation files found to determine the extension."
             )
-            
+
         if extension == "txt":
             extension = "text"
             dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
             # For txt files, we need to process SMILES into graph data
             from preprocess.mol3d_processor import smiles2GeoGraph
-            
+
             def process_smiles_to_graph(example):
-                smiles = example['smiles']
+                smiles = example["smiles"]
                 graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
                 if graph_data is None:
                     return None
                 return {
-                    'smiles': smiles,
-                    'x': graph_data.x.tolist(),
-                    'edge_index': graph_data.edge_index.tolist(),
-                    'edge_attr': graph_data.edge_attr.tolist(),
+                    "smiles": smiles,
+                    "x": graph_data.x.tolist(),
+                    "edge_index": graph_data.edge_index.tolist(),
+                    "edge_attr": graph_data.edge_attr.tolist(),
                 }
-            
+
             # Load the text dataset first
             raw_datasets = load_dataset(
                 extension,
@@ -496,40 +516,40 @@ def main():
                 cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
                 **dataset_args,
             )
-            
+
             # Rename 'text' column to 'smiles'
-            raw_datasets = raw_datasets.rename_column('text', 'smiles')
-            
+            raw_datasets = raw_datasets.rename_column("text", "smiles")
+
             # Process SMILES to graph data
             raw_datasets = raw_datasets.map(
                 process_smiles_to_graph,
                 remove_columns=raw_datasets["train"].column_names,
-                desc="Converting SMILES to graph data"
+                desc="Converting SMILES to graph data",
             )
             # Filter out None values (invalid SMILES)
             raw_datasets = raw_datasets.filter(lambda x: x is not None)
         elif extension == "csv":
             # For CSV files, we need to process SMILES into graph data
             from preprocess.mol3d_processor import smiles2GeoGraph
-            
+
             def process_smiles_to_graph(example):
-                smiles = example['smiles']
+                smiles = example["smiles"]
                 graph_data = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
                 if graph_data is None:
                     return None
                 # Create a new dict with graph data while preserving all other columns
                 result = {
-                    'smiles': smiles,
-                    'x': graph_data.x.tolist(),
-                    'edge_index': graph_data.edge_index.tolist(),
-                    'edge_attr': graph_data.edge_attr.tolist(),
+                    "smiles": smiles,
+                    "x": graph_data.x.tolist(),
+                    "edge_index": graph_data.edge_index.tolist(),
+                    "edge_attr": graph_data.edge_attr.tolist(),
                 }
                 # Preserve all other columns (including labels)
                 for key, value in example.items():
                     if key not in result:
                         result[key] = value
                 return result
-            
+
             # Load the CSV dataset
             raw_datasets = load_dataset(
                 "csv",
@@ -538,16 +558,15 @@ def main():
                 cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
                 **dataset_args,
             )
-            
+
             # Process SMILES to graph data
             raw_datasets = raw_datasets.map(
-                process_smiles_to_graph,
-                desc="Converting SMILES to graph data"
+                process_smiles_to_graph, desc="Converting SMILES to graph data"
             )
             # Filter out None values (invalid SMILES)
             raw_datasets = raw_datasets.filter(lambda x: x is not None)
         else:
-            if extension == "jsonl": 
+            if extension == "jsonl":
                 extension = "json"
             raw_datasets = load_dataset(
                 extension,
@@ -556,7 +575,7 @@ def main():
                 cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
                 **dataset_args,
             )
-        
+
         # If no validation data is there, validation_split_percentage will be used to divide the dataset.
         if "validation" not in raw_datasets.keys():
             raw_datasets["validation"] = load_dataset(
@@ -600,7 +619,7 @@ def main():
         "use_auth_token": True if model_args.use_auth_token else None,
         "padding_side": "right",
     }
-    
+
     ## Load tokenizer.
     if model_args.tokenizer_name:
         tokenizer = AutoTokenizer.from_pretrained(
@@ -615,7 +634,7 @@ def main():
             "You are instantiating a new tokenizer from scratch. This is not supported by this script."
             "You can do it from another script, save it, and load it from here, using --tokenizer_name."
         )
-        
+
     tokenizer.add_special_tokens({"pad_token": "[PAD]"})
 
     ### Start Load Model
@@ -635,7 +654,6 @@ def main():
         raise ValueError(
             "For finetuning stage, you have to load a exiting pretrained model."
         )
-
 
     if training_args.do_train:
         column_names = list(raw_datasets["train"].features)
@@ -677,7 +695,9 @@ def main():
         scaler.fit(all_labels)
 
         def normalize_labels(example):
-            example[target_column_name] = scaler.transform([[example[target_column_name]]])[0][0]
+            example[target_column_name] = scaler.transform(
+                [[example[target_column_name]]]
+            )[0][0]
             return example
 
         raw_datasets = raw_datasets.map(normalize_labels)
@@ -688,14 +708,17 @@ def main():
             raw_datasets = sample_operation(raw_datasets, -1, 1)
 
     # Weight labels
-    if model_args.task_type == "classification" and data_args.class_weight and multi_label_mark == False:
+    if (
+        model_args.task_type == "classification"
+        and data_args.class_weight
+        and multi_label_mark == False
+    ):
         labels = raw_datasets["train"][target_column_name]
         class_weights = compute_class_weight(
             "balanced", classes=np.unique(labels), y=labels
         )
         class_weights = torch.tensor(class_weights, dtype=torch.float)
         model.class_weight = class_weights
-
 
     if training_args.do_train:
         if "train" not in raw_datasets:
@@ -728,6 +751,7 @@ def main():
         )
 
         if model_args.task_type == "regression":
+
             def compute_metrics(pred):
 
                 logits, labels = pred.predictions, pred.label_ids
@@ -742,20 +766,20 @@ def main():
 
                 pred = (score_a < score_b).astype(int)
                 acc = (pred == labels).mean()
-                
+
                 metrics = {
                     "mean_margin": mean_margin,
                     "correct_margin": correct_margin,
                     "pairwise_accuracy": acc,
-                    "loss_pairwise": sum(loss_pairwise)/len(loss_pairwise),
-                    "loss_regression": sum(loss_regression)/len(loss_regression)
+                    "loss_pairwise": sum(loss_pairwise) / len(loss_pairwise),
+                    "loss_regression": sum(loss_regression) / len(loss_regression),
                 }
-            
-                
+
                 return metrics
 
         elif model_args.task_type == "classification":
             if model_args.output_size == -1:
+
                 def compute_metrics(pred, threshold=0.5, fig=False):
                     labels = pred.label_ids
 
@@ -800,38 +824,50 @@ def main():
                         "precision": precision,
                         "recall": recall,
                     }
+
             elif model_args.output_size >= 2:
+
                 def compute_metrics(pred, threshold=0.5, fig=False):
-                    labels = pred.label_ids  # Ground truth labels, shape: [batch_size, num_classes]
-                    probs = pred.predictions  # Model probabilities/logits, shape: [batch_size, num_classes]
-                    
+                    labels = (
+                        pred.label_ids
+                    )  # Ground truth labels, shape: [batch_size, num_classes]
+                    probs = (
+                        pred.predictions
+                    )  # Model probabilities/logits, shape: [batch_size, num_classes]
+
                     # Apply sigmoid to logits to get probabilities (required for multi-label classification)
                     probs = 1 / (1 + np.exp(-probs))
-                    
+
                     # Predict labels based on the threshold
                     preds = (probs >= threshold).astype(int)
-                    
+
                     # Calculate metrics for multi-label classification
                     precision, recall, f1, _ = precision_recall_fscore_support(
                         labels, preds, average="samples", zero_division=0
                     )  # "samples" average for multi-label tasks
-                    
+
                     # Micro-average accuracy (not per-sample accuracy)
-                    task_accuracies = np.mean(labels == preds, axis=0)  # 每个任务的准确率
-                    accuracy = np.mean(task_accuracies)       # 所有任务的平均准确率
-                    
+                    task_accuracies = np.mean(
+                        labels == preds, axis=0
+                    )  # Accuracy for each task
+                    accuracy = np.mean(
+                        task_accuracies
+                    )  # Average accuracy across all tasks
+
                     # ROC-AUC (multi-label)
                     try:
-                        roc_auc = roc_auc_score(labels, probs, average="macro", multi_class="ovr")
+                        roc_auc = roc_auc_score(
+                            labels, probs, average="macro", multi_class="ovr"
+                        )
                     except ValueError:
                         roc_auc = float("nan")
-                    
+
                     # PR-AUC (multi-label)
                     try:
                         pr_auc = average_precision_score(labels, probs, average="macro")
                     except ValueError:
                         pr_auc = float("nan")
-                    
+
                     return {
                         "accuracy": accuracy,
                         "f1": f1,
@@ -840,20 +876,24 @@ def main():
                         "precision": precision,
                         "recall": recall,
                     }
+
             else:
                 print("Model args output_size is not correct.")
 
     test_dataset = raw_datasets["test"]
-    
+
     from torch_geometric.data import Batch
     from graph_batch import TriBatch
-    
+
     def custom_collate_fn_pairwise(batch):
         def tokenize_and_batch(inputs):
             smiles = [item["smiles"] for item in inputs]
             tokenized = tokenizer(
-                smiles, truncation=True, max_length=data_args.block_size,
-                padding=True, return_tensors="pt"
+                smiles,
+                truncation=True,
+                max_length=data_args.block_size,
+                padding=True,
+                return_tensors="pt",
             )
             values = [item[target_column_name] for item in inputs]
             values = torch.tensor(values, dtype=torch.float)
@@ -867,9 +907,19 @@ def main():
                         return converter(value)
                     else:
                         return torch.tensor(value, dtype=converter)
-                return value 
+                return value
+
             batch_data = [
-                Data(**{key: convert_value(key, value) if isinstance(value, list) else value for key, value in data_dict.items()})
+                Data(
+                    **{
+                        key: (
+                            convert_value(key, value)
+                            if isinstance(value, list)
+                            else value
+                        )
+                        for key, value in data_dict.items()
+                    }
+                )
                 for data_dict in inputs
             ]
             graph_batch = TriBatch.from_data_list(batch_data)
@@ -889,9 +939,8 @@ def main():
             "attention_mask_b": tokenize_and_batch(inputs_b)[1],
             "values_b": tokenize_and_batch(inputs_b)[2],
             "graph_data_b": batch_graph_data(inputs_b),
-            "labels": preferences
+            "labels": preferences,
         }
-
 
     def custom_collate_fn(batch):
         """
@@ -911,21 +960,32 @@ def main():
             padding=True,
             return_tensors=None,
         )
-        input_ids = tokenized['input_ids']
-        attention_mask = tokenized['attention_mask']
-        
+        input_ids = tokenized["input_ids"]
+        attention_mask = tokenized["attention_mask"]
+
         # Handle labels
         if isinstance(target_column_name, str):
-            labels = torch.stack([torch.tensor(item[target_column_name]) for item in batch])
+            labels = torch.stack(
+                [torch.tensor(item[target_column_name]) for item in batch]
+            )
         elif isinstance(target_column_name, list):
-            labels = torch.stack([
-                torch.tensor([
-                    0 if (col_value := item[col]) != col_value or col_value is None else col_value
-                    for col in target_column_name
-                ])
-                for item in batch
-            ])
-        
+            labels = torch.stack(
+                [
+                    torch.tensor(
+                        [
+                            (
+                                0
+                                if (col_value := item[col]) != col_value
+                                or col_value is None
+                                else col_value
+                            )
+                            for col in target_column_name
+                        ]
+                    )
+                    for item in batch
+                ]
+            )
+
         # Process graph data
         def convert_value(key, value):
             if key in type_map:
@@ -934,24 +994,29 @@ def main():
                     return converter(value)
                 else:
                     return torch.tensor(value, dtype=converter)
-            return value 
-        
+            return value
+
         batch_data = [
-            Data(**{key: convert_value(key, value) if isinstance(value, list) else value for key, value in data_dict.items()})
+            Data(
+                **{
+                    key: convert_value(key, value) if isinstance(value, list) else value
+                    for key, value in data_dict.items()
+                }
+            )
             for data_dict in batch
         ]
         graph_batch = TriBatch.from_data_list(batch_data)
-        
+
         return {
             "input_ids": torch.tensor(input_ids),
             "attention_mask": torch.tensor(attention_mask),
             "labels": labels,
-            "graph_data": graph_batch
+            "graph_data": graph_batch,
         }
-    
+
     # Initialize our Trainer
     training_args.remove_unused_columns = False
-    
+
     trainer = PairwiseTrainer(
         model=model,
         args=training_args,

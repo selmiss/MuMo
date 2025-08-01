@@ -3,10 +3,10 @@
 export PYTHONPATH=${BASE_DIR}
 
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
-MODEL_NAME=$1
+MODEL_NAME=mumo
 TASK_NAME=delaney
-DATATYPE=$5
-MODEL_CLASS=$4
+DATATYPE=sft_geo_randomsplit
+MODEL_CLASS=MuMoFinetune
 CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 
 for i in {1..3}
@@ -33,9 +33,9 @@ export WANDB_DIR="${output_model}/wandb"
     --run_name ${filename} \
         --model_name_or_path ${BASE_MODEL} \
         --config_name ${CONFIG_NAME} \
-        --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.csv \
-        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.csv \
-        --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.csv \
+        --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/train_${TASK_NAME}_${i}.jsonl \
+        --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/valid_${TASK_NAME}_${i}.jsonl \
+        --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}_${i}/raw/test_${TASK_NAME}_${i}.jsonl \
         --data_column_name smiles \
         --label_column_name logSolubility \
         --normlization True \

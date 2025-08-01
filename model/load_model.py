@@ -3,6 +3,7 @@ from transformers import AutoConfig
 from model.attention_mamba import *
 from model.mumo import *
 
+
 def initialize_weights(model):
     """
     Init all the params in model.
@@ -43,17 +44,17 @@ def load_model(config, tokenizer=None, training_args=None, model_args=None):
     Returns:
         model
     """
-    
+
     model_class_str = model_args.model_class
     model_class = globals().get(model_class_str)
     if model_class is None:
         raise ValueError(f"Model class '{model_class_str}' not found in current scope.")
-    
+
     ### Start Load Model
-    
+
     if hasattr(model_args, "task_type"):
         config.update({"task_type": model_args.task_type})
-    
+
     print("Start load model")
     if model_args.model_name_or_path:
 
@@ -74,17 +75,20 @@ def load_model(config, tokenizer=None, training_args=None, model_args=None):
             f"Training new model from scratch - Total size={n_params/2**20:.2f}M params"
         )
         if hasattr(model_args, "task_type") and model_args.task_type is not None:
-            raise ValueError("If you are running funetuning tasks you need to sepcify a pretrained model.")
+            raise ValueError(
+                "If you are running funetuning tasks you need to sepcify a pretrained model."
+            )
 
     # if tokenizer is not None:
     #     try:
     #         model.resize_token_embeddings(len(tokenizer))
     #     except Exception as err:
     #         print(err)
-        
-    print( "End load model")
+
+    print("End load model")
     ### End Load Model
     return model
+
 
 def load_model_from_path(model_path, model_class: str):
     """
@@ -97,18 +101,17 @@ def load_model_from_path(model_path, model_class: str):
     Returns:
         model
     """
-    
+
     model_class_str = model_class
     model_class = globals().get(model_class_str)
     if model_class is None:
         raise ValueError(f"Model class '{model_class_str}' not found in current scope.")
-    
+
     config = AutoConfig.from_pretrained(model_path)
     model = model_class.from_pretrained(
-            model_path,
-            from_tf=bool(".ckpt" in model_path),
-            config=config,
-            use_flash_attention_2=False,
-        )
+        model_path,
+        from_tf=bool(".ckpt" in model_path),
+        config=config,
+        use_flash_attention_2=False,
+    )
     return model
-    

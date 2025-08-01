@@ -1,3 +1,0 @@
-bash ./pretrain/mumo.sh;
-master_port=29500 gpus=0,1 bash ./sft/tuning_all.sh mumo bace,bbbp,clintox,tox21,sider,delaney,lipo,freesolv MuMoFinetune sft_geo_randomsplit;
-master_port=29500 gpus=0,1 bash ./sft/tuning_all.sh mumo bace,bbbp MuMoFinetune sft_geo_scaffoldsplit;
