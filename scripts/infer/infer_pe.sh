@@ -6,7 +6,7 @@ MODEL_CLASS=MuMoFinetune
 CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_low.json
 
 # Base config
-output_dir=${DATA_DIR}/model/sft/mumo/pin1_infer_pe
+output_dir=${DATA_DIR}/model/sft/mumo_pin1/mumo_pin1_MuMoFinetunePairwise_pairwise-pin1_pe
 BASE_MODEL=${DATA_DIR}/model/sft/mumo_pin1/mumo_pin1_MuMoFinetunePairwise_pairwise-pin1_pe
 
 # DeepSpeed config

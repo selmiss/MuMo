@@ -7,7 +7,7 @@ CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_low.json
 
 # Base config
 output_dir=${DATA_DIR}/model/sft/mumo/pin1_infer_ic50_e10
-BASE_MODEL=${DATA_DIR}/model/sft/mumo_pin1/mumo_pin1_MuMoFinetunePairwise_pairwise-pin1_ic50_e10
+BASE_MODEL=${DATA_DIR}/model/sft/mumo_pin1/mumo_pin1_MuMoFinetunePairwise_pairwise-pin1_ic50_e15
 
 # DeepSpeed config
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json

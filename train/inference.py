@@ -216,13 +216,6 @@ def main():
     # Create output directory if it doesn't exist
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # Create or append to results file
-    tmp_results_file = os.path.join(args.output_dir, "tmp_predictions.csv")
-    if not os.path.exists(tmp_results_file):
-        pd.DataFrame(columns=["smiles", "prediction"]).to_csv(
-            tmp_results_file, index=False
-        )
-
     # Load model and tokenizer
     config_kwargs = {
         "cache_dir": args.cache_dir,
@@ -270,15 +263,33 @@ def main():
     # Process data in batches
     all_predictions = None
     all_smiles = []  # Rename to be more clear
+    all_original_data = []  # Store original data to preserve other columns
 
     # Process data in batches
     total_batches = (len(test_dataset) + args.batch_size - 1) // args.batch_size
+    
     for i in tqdm(
         range(0, len(test_dataset), args.batch_size),
         total=total_batches,
         desc="Processing batches",
     ):
         batch = test_dataset[i : i + args.batch_size]
+
+        # Store original batch data to preserve other columns
+        if isinstance(batch, dict):
+            # Convert batch dict to list of dicts for easier handling
+            batch_size = len(batch[list(batch.keys())[0]])
+            original_batch_data = []
+            for j in range(batch_size):
+                item_data = {}
+                for key, value in batch.items():
+                    if isinstance(value, list) and j < len(value):
+                        item_data[key] = value[j]
+                    elif not isinstance(value, list):
+                        item_data[key] = value
+                original_batch_data.append(item_data)
+        else:
+            original_batch_data = batch
 
         # Process each item in the batch to generate graph data
         processed_batch = []
@@ -291,6 +302,7 @@ def main():
             processed_batch = process_smiles_to_graph(smiles)
         else:
             continue
+
 
         if not processed_batch:
             continue
@@ -313,13 +325,6 @@ def main():
             logger.debug(f"Batch predictions shape: {predictions.shape}")
             logger.debug(f"First few predictions: {predictions[:5]}")
 
-            batch_df = pd.DataFrame(
-                {
-                    "smiles": processed_batch["smiles"],
-                    "prediction": predictions.flatten(),
-                }
-            )
-            batch_df.to_csv(tmp_results_file, mode="a", header=False, index=False)
             # Store predictions
             if all_predictions is None:
                 all_predictions = predictions
@@ -328,6 +333,9 @@ def main():
 
             # Store SMILES for this batch
             all_smiles.extend(processed_batch["smiles"])
+            
+            # Store original data for this batch
+            all_original_data.extend(original_batch_data)
 
     logger.debug(f"Total predictions shape: {all_predictions.shape}")
     logger.debug(f"Total SMILES: {len(all_smiles)}")
@@ -342,7 +350,24 @@ def main():
         )  # Make sure predictions are 1-dimensional
 
     # Save final results
-    df = pd.DataFrame({"smiles": all_smiles, "prediction": predictions})
+    # Create DataFrame with all original columns plus predictions
+    logger.info(f"Creating final DataFrame with {len(all_original_data)} samples and {len(predictions)} predictions")
+    
+    if len(all_original_data) != len(predictions):
+        logger.warning(f"Mismatch between original data ({len(all_original_data)}) and predictions ({len(predictions)})")
+        # Use the shorter length to avoid index errors
+        min_length = min(len(all_original_data), len(predictions))
+        all_original_data = all_original_data[:min_length]
+        predictions = predictions[:min_length]
+    
+    result_data = []
+    for i, original_item in enumerate(all_original_data):
+        item_data = original_item.copy()  # Copy all original columns
+        item_data["prediction"] = predictions[i]  # Add prediction
+        result_data.append(item_data)
+    
+    df = pd.DataFrame(result_data)
+    logger.info(f"Final DataFrame columns: {list(df.columns)}")
     output_path = os.path.join(args.output_dir, "test_predictions.csv")
     df.to_csv(output_path, index=False)
     logger.info(f"✅ Saved predictions to {output_path}")

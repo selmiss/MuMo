@@ -41,7 +41,6 @@ nvidia-nccl-cu12==2.21.5
 six==1.17.0
 nvidia-cuda-runtime-cu12==12.4.127
 platformdirs==4.3.8
-mamba_ssm==2.2.4
 pip==25.1
 wheel==0.45.1
 huggingface-hub==0.32.2
@@ -74,7 +73,6 @@ outdated==0.2.2
 executing==2.2.0
 littleutils==0.2.4
 hf-xet==1.1.2
-causal_conv1d==1.5.0.post8
 Jinja2==3.1.6
 tqdm==4.67.1
 frozenlist==1.6.0
@@ -89,7 +87,7 @@ pyparsing==3.2.3
 hjson==3.1.0
 rdkit==2025.3.2
 xxhash==3.5.0
-torchaudio==2.5.1+cu121
+torchaudio==2.5.1
 scikit-learn==1.6.1
 typing-inspection==0.4.1
 python-dateutil==2.9.0.post0
@@ -124,6 +122,11 @@ jaraco.context==5.3.0
 jaraco.functools==4.0.1
 packaging==24.2
 zipp==3.19.2
+deepspeed
+datasets
+scikit-learn
+torch_geometric
+wandb
 
 # Note: causal-conv1d and mamba need to be installed from source
 # See README.md for installation instructions
