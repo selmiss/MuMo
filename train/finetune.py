@@ -601,7 +601,6 @@ def main():
 
     print("train_on_inputs", data_args.train_on_inputs)
 
-
     # --------------- Normalization Labels new ----------------
     if model_args.task_type == "regression" and data_args.normlization:
         # -- 1. Prepare scaler (using training set only)

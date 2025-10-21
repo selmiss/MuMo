@@ -22,7 +22,7 @@ cp ${DS_CONFIG} ${output_model}
 cp ${MODEL_CONFIG} ${output_model}/config.json
 cp ${BASE_DIR}/train/pretrain.py ${output_model}
 
-export CUDA_HOME=/usr/local/cuda/
+# export CUDA_HOME=/usr/local/cuda
 
 # Deepspeed settings
 MASTER_PORT=29500

@@ -267,7 +267,7 @@ def main():
 
     # Process data in batches
     total_batches = (len(test_dataset) + args.batch_size - 1) // args.batch_size
-    
+
     for i in tqdm(
         range(0, len(test_dataset), args.batch_size),
         total=total_batches,
@@ -303,7 +303,6 @@ def main():
         else:
             continue
 
-
         if not processed_batch:
             continue
 
@@ -333,7 +332,7 @@ def main():
 
             # Store SMILES for this batch
             all_smiles.extend(processed_batch["smiles"])
-            
+
             # Store original data for this batch
             all_original_data.extend(original_batch_data)
 
@@ -351,21 +350,25 @@ def main():
 
     # Save final results
     # Create DataFrame with all original columns plus predictions
-    logger.info(f"Creating final DataFrame with {len(all_original_data)} samples and {len(predictions)} predictions")
-    
+    logger.info(
+        f"Creating final DataFrame with {len(all_original_data)} samples and {len(predictions)} predictions"
+    )
+
     if len(all_original_data) != len(predictions):
-        logger.warning(f"Mismatch between original data ({len(all_original_data)}) and predictions ({len(predictions)})")
+        logger.warning(
+            f"Mismatch between original data ({len(all_original_data)}) and predictions ({len(predictions)})"
+        )
         # Use the shorter length to avoid index errors
         min_length = min(len(all_original_data), len(predictions))
         all_original_data = all_original_data[:min_length]
         predictions = predictions[:min_length]
-    
+
     result_data = []
     for i, original_item in enumerate(all_original_data):
         item_data = original_item.copy()  # Copy all original columns
         item_data["prediction"] = predictions[i]  # Add prediction
         result_data.append(item_data)
-    
+
     df = pd.DataFrame(result_data)
     logger.info(f"Final DataFrame columns: {list(df.columns)}")
     output_path = os.path.join(args.output_dir, "test_predictions.csv")

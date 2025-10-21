@@ -1,8 +1,16 @@
-# **MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection (Anonymous Submission)**
+# **MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection**
 
-*(Anonymous Submission for NeurIPS 2025, Paper ID: 17946)*
+*Accepted at NeurIPS 2025*
 
-This repository contains the code, dataset, and trained models used in our research paper submitted to a leading AI conference. Due to the double-blind review process, all authorship details have been removed.
+Authors: Zihao Jing1, Yan Sun1, Yan Yi Li2, Sugitha Janarthanan2, Alana Deng1, Pingzhao Hu1,2∗
+
+1 Department of Computer Science, Western University, London, ON, Canada
+
+2 Department of Biochemistry, Western University, London, ON, Canada
+
+Contact: zjing29@uwo.ca, phu49@uwo.ca
+
+This repository contains the code, dataset, and trained models accompanying our NeurIPS 2025 paper.
 
 **Follow the instructions below, we believe you can reproduce the whole pretrain and finetune results within 24h using 4*A100-80G GPUs.**
 
@@ -34,75 +42,25 @@ To ensure reproducibility, we provide a list of required dependencies.
 
 ### **Using Conda (Recommended)**
 
+Be careful about the cuda-toolkit version in the environment.yml, it should fit your cuda driver's version (not higher than the nvidia driver). And also, your cuda-toolkit version should be consistent as the cuda version you compile the pytorch.
 ```bash
 # Create and activate conda environment
-conda create -n mumo python=3.11
+conda env create -f environment.yml
 conda activate mumo
 
-# Install PyTorch with CUDA support
-conda install pytorch==2.5.1 torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
-
-# Install other requirements
-pip install -r requirements.txt
-
 # If you want to get the traning and inference speed from mamba structure, you would like to install:
 # Install causal-conv1d from source
 git clone https://github.com/Dao-AILab/causal-conv1d.git
-cd causal-conv1d
-pip install -e .
-cd ..
+pip install ./causal-conv1d
 
-# Install mamba from source
+# Install mamba-ssm from source
 git clone https://github.com/state-spaces/mamba.git
-cd mamba
-pip install -e .
-cd ..
-```
+pip install ./mamba
 
-### **Using pip**
-
-```bash
-# Install PyTorch with CUDA support
-pip install torch==2.5.1+cu124 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-
-# Install other requirements
-pip install -r requirements.txt
-
-# If you want to get the traning and inference speed from mamba structure, you would like to install:
-# Install causal-conv1d from source
-git clone https://github.com/Dao-AILab/causal-conv1d.git
-cd causal-conv1d
-pip install -e .
-cd ..
-
-# Install mamba from source
-git clone https://github.com/state-spaces/mamba.git
-cd mamba
-pip install -e .
-cd ..
-```
-
-Note: Make sure you have CUDA 12.4 installed on your system. If you're using a different CUDA version, you'll need to adjust the PyTorch installation command accordingly.
-
-## Installation
-
-1. First, install the required packages:
-```bash
-pip install -r requirements.txt
-```
-
-2. Install causal-conv1d from source:
-```bash
-git clone https://github.com/Dao-AILab/causal-conv1d.git
-cd causal-conv1d
-pip install -e .
-```
-
-3. Install mamba from source:
-```bash
-git clone https://github.com/state-spaces/mamba.git
-cd mamba
-pip install -e .
+# make sure your transformer version is compatible.
+conda install transformers==4.45.2
+conda install pytorch==2.5.1
+conda install numpy~=2.2
 ```
 
 ---
@@ -140,11 +98,11 @@ Before running any scripts, you must configure the environment variables for you
 
 ## **3. Dataset**
 
-The pretrain and finetune datasets used in our experiments can be downloaded from the anonymous storage link:
+The pretrain and finetune datasets used in our experiments can be downloaded from the following links:
 
-🔗 [Finetune Dataset (Anonymous)](https://drive.google.com/file/d/1-KVM21Hc1pdx4p3agxqiuIuk-Gur_5KO/view?usp=sharing) 243.8M
+🔗 [Finetune Dataset](https://drive.google.com/file/d/1-KVM21Hc1pdx4p3agxqiuIuk-Gur_5KO/view?usp=sharing) 243.8M
 
-🔗 [Pretrain Dataset (Anonymous)](https://drive.google.com/file/d/16m476wsvnVVbo6fD5qNVAeVN4FLathX-/view?usp=sharing) 1.66G
+🔗 [Pretrain Dataset](https://drive.google.com/file/d/16m476wsvnVVbo6fD5qNVAeVN4FLathX-/view?usp=sharing) 1.66G
 
 After downloading the ZIP compressed dataset, extract it to obtain the `dataset` folder. If both pretraining and fine-tuning datasets are downloaded, merge them into a single `dataset` folder.
 
@@ -211,10 +169,21 @@ Note that different GPUs or batch size may influence the results slightly, but o
 
 ## **7. Citation**
 
-To ensure double-blind review, citation details will be provided upon paper acceptance.
+If you find this work useful, please cite:
+
+Jing, Zihao; Sun, Yan; Li, Yan Yi; Janarthanan, Sugitha; Deng, Alana; Hu, Pingzhao. "MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection." In Advances in Neural Information Processing Systems (NeurIPS), 2025.
+
+```bibtex
+@inproceedings{jing2025mumo,
+  title        = {MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection},
+  author       = {Jing, Zihao and Sun, Yan and Li, Yan Yi and Janarthanan, Sugitha and Deng, Alana and Hu, Pingzhao},
+  booktitle    = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year         = {2025}
+}
+```
 
 ---
 
 ## **8. Contact**
 
-Since this is an anonymous submission, we cannot provide direct contact details. Any questions should be addressed through the conference review system.
+For questions or collaboration, please contact: zjing29@uwo.ca (Zihao Jing) or phu49@uwo.ca (Pingzhao Hu, corresponding author).

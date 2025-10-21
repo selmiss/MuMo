@@ -8,6 +8,7 @@ __pycache__/
 *$py.class
 
 # External repos
+/tmp/
 causal-conv1d/
 mamba/
 wandb/

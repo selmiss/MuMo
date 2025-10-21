@@ -140,9 +140,7 @@ def main():
     DATA_DIR = os.getenv("DATA_DIR")
     # Example usage of the original function
     print("=== Using construct_qm_data ===")
-    graphs_list = construct_qm_data(
-        f"{DATA_DIR}/dataset/QM/ori/gdb9/gdb9.sdf"
-    )
+    graphs_list = construct_qm_data(f"{DATA_DIR}/dataset/QM/ori/gdb9/gdb9.sdf")
 
     # Process first few molecules as example
     print(f"Total graphs generated: {len(graphs_list)}")
