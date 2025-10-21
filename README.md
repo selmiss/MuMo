@@ -163,7 +163,7 @@ When the training finished, the results will be written to `./results/`. We have
 
 ## 6. Results
 
-![ ](./fig/results.png)
+![ ](./fig/result.png)
 
 Note that different GPUs or batch size may influence the results slightly, but overall the same.
 
