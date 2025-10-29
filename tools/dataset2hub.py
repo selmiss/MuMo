@@ -178,8 +178,8 @@ if __name__ == "__main__":
     # This creates separate configs for each task
     # """
     upload_multiple_finetune_datasets(
-        base_dir="/data/lab_ph/zihao/Nips/hub_upload",
-        repo_name="zihaojing/MuMo-Finetune",
+        base_dir="/data/lab_ph/zihao/Nips/dataset/nih/nih_hub",
+        repo_name="zihaojing/NIH",
         private=False,  # Set to True for private dataset
     )
 

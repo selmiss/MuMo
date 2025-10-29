@@ -4,7 +4,7 @@ export PYTHONPATH=${BASE_DIR}
 
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
 MODEL_NAME=mumo_pin1
-TASK_NAME=pin1_ic50_e15
+TASK_NAME=nih_ic50
 MODEL_CLASS=MuMoFinetunePairwise
 DATATYPE=pairwise
 CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_low_ic50.json
@@ -31,12 +31,11 @@ cp ${DS_CONFIG} ${output_model}
 # Runner
 WANDB_PROJECT=mumo-pairwise-sft \
 deepspeed --master_port 29502 --include localhost:6 ${BASE_DIR}/train/pairwise_sft.py \
-    --model_name_or_path ${BASE_MODEL} \
+    --model_name_or_path zihaojing/MuMo-pin1 \
     --config_name ${CONFIG_NAME} \
     --run_name ${filename}\
-    --train_files ${DATA_DIR}/dataset/nih/nih_ic50/split_data/train.jsonl \
-    --validation_files ${DATA_DIR}/dataset/nih/nih_ic50/split_data/valid.jsonl \
-    --test_files ${DATA_DIR}/dataset/nih/nih_ic50/split_data/test.jsonl \
+    --dataset_name zihaojing/NIH \
+    --dataset_config_name ${TASK_NAME} \
     --data_column_name smiles \
     --label_column_name log_IC50 \
     --normlization False \
