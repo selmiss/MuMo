@@ -13,7 +13,7 @@ CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 # Base config
 output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}
 
-export WANDB_PROJECT="NeurIPS_Rebuttal_SFT"
+export WANDB_PROJECT="MuMo_SFT"
 export WANDB_DIR="${output_model}/wandb"
 BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
@@ -31,9 +31,8 @@ deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --run_name ${filename} \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
-    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.jsonl \
-    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.jsonl \
-    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.jsonl \
+    --dataset_name zihaojing/MuMo-Finetune \
+    --dataset_config_name ${TASK_NAME} \
     --data_column_name smiles \
     --label_column_name Y \
     --normlization True \

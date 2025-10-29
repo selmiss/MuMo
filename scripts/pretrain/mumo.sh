@@ -17,7 +17,7 @@ export PYTHONPATH=${BASE_DIR}
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
 output_model=${DATA_DIR}/model/pretrain/${filename}
 
-export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_PROJECT="MuMo"
 export WANDB_DIR="${output_model}/wandb"
 
 # Base config

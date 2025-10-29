@@ -5,7 +5,7 @@ export PYTHONPATH=${BASE_DIR}
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
 output_model=${DATA_DIR}/model/pretrain/${filename}
 
-export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_PROJECT="MuMo"
 export WANDB_DIR="${output_model}/wandb"
 
 # Base config
@@ -37,8 +37,7 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --output_dir ${output_model} \
     --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
-    --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
-    --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \
+    --dataset_name zihaojing/MuMo-Pretraining \
     --preprocessing_num_workers 20 \
     --max_grad_norm 1.0 \
     --seed 42 \

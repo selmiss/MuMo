@@ -7,7 +7,7 @@ filename=$(basename "${BASH_SOURCE[0]}" .sh)
 # Base config
 output_model=${DATA_DIR}/model/pretrain/${filename}
 
-export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_PROJECT="MuMo"
 export WANDB_DIR="${output_model}/wandb"
 
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
@@ -23,12 +23,11 @@ cp ${DS_CONFIG} ${output_model}
 cp ${MODEL_CONFIG} ${output_model}/config.json
 cp ${BASE_DIR}/train/pretrain.py ${output_model}
 
-export CUDA_HOME=/usr/local/cuda/
 # export NCCL_P2P_DISABLE=1
 
 # Deepspeed settings
-MASTER_PORT=29500
-GPUs=6,7
+MASTER_PORT=29501
+GPUs=6
 
 # Runner
 deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/train/pretrain.py \
@@ -40,8 +39,7 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --output_dir ${output_model} \
     --model_class MuMoFormerPretrain \
     --ddp_timeout 18000000 \
-    --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
-    --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \
+    --dataset_name zihaojing/MuMo-Pretraining \
     --preprocessing_num_workers 20 \
     --seed 42 \
     --ignore_data_skip true \

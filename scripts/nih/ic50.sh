@@ -15,7 +15,7 @@ CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_low.json
 # Base config
 output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${DATATYPE}-${TASK_NAME}
 
-export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_PROJECT="MuMo"
 export WANDB_DIR="${output_model}/wandb"
 BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json

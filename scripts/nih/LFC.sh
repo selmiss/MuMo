@@ -12,7 +12,7 @@ CONFIG_NAME=${BASE_DIR}/config/mumo/config_cls_reg.json
 # Base config
 output_model=${DATA_DIR}/model/sft/mumo/dk
 
-export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_PROJECT="MuMo"
 export WANDB_DIR="${output_model}/wandb"
 BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json

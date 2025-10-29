@@ -796,9 +796,9 @@ if __name__ == "__main__":
 
     # transfer_data(input_path=output_path, output_path=f"{DATA_DIR}/dataset/pretrain/geo_data/chembl_train_dict.jsonl")
 
-    # test_data_dir = f"{DATA_DIR}/dataset/test_randomsplit/bace"
-    # test_data_output_dir = f"{DATA_DIR}/dataset/test_geo_randomsplit/bace"
-    # generate_geotest_dataset_dir(test_data_dir, test_data_output_dir)
+    test_data_dir = f"{DATA_DIR}/dataset/test_randomsplit/bace"
+    test_data_output_dir = f"{DATA_DIR}/dataset/test_geo_randomsplit/bace"
+    generate_geotest_dataset_dir(test_data_dir, test_data_output_dir)
 
     # test_data_dir = f"{DATA_DIR}/dataset/test_scaffoldsplit"
     # test_data_output_dir = f"{DATA_DIR}/dataset/test_geo_scaffoldsplit"

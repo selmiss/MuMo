@@ -1,12 +1,12 @@
-name: mumo1
+name: mymumo
 channels:
   - nvidia
   - conda-forge
   - defaults
 dependencies:
   - python=3.11
-  - gcc_linux-64=12
-  - gxx_linux-64=12
+  # - gcc_linux-64=12  # Commented out: can cause cross-compiler errors, system compilers work fine
+  # - gxx_linux-64=12  # Commented out: can cause cross-compiler errors, system compilers work fine
   - cuda-toolkit=12.8
   - cudnn
   - pytorch=2.5.1
@@ -38,7 +38,7 @@ dependencies:
       - gitdb~=4.0
       - Jinja2~=3.1
       - tqdm~=4.67
-      - transformers~=4.45
+      - transformers==4.46.*
       - multidict~=6.4
       - requests~=2.32
       - rdkit~=2025.3

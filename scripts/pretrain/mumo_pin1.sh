@@ -7,7 +7,7 @@ filename=$(basename "${BASH_SOURCE[0]}" .sh)
 # Base config
 output_model=${DATA_DIR}/model/pretrain/${filename}
 
-export WANDB_PROJECT="NeurIPS_Rebuttal"
+export WANDB_PROJECT="MuMo"
 export WANDB_DIR="${output_model}/wandb"
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls_low.json

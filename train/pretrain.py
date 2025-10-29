@@ -451,9 +451,11 @@ def main():
         )
         # For Hub datasets, we assume they are already in the correct format (jsonl/json)
         extension = "jsonl"
+        hf_datasets = True
     else:
         # Load from local files (existing behavior)
         # Train datasets
+        hf_datasets = False
         if data_args.train_files is not None:
             if (
                 isinstance(data_args.train_files, list)
@@ -566,7 +568,7 @@ def main():
         )
 
     # Process the datasets
-    if training_args.do_train:
+    if training_args.do_train and not hf_datasets:
         raw_datasets["train"] = raw_datasets["train"].map(
             process_smiles_to_graph,
             num_proc=data_args.preprocessing_num_workers,
@@ -574,7 +576,7 @@ def main():
             desc="Processing train dataset",
         )
 
-    if training_args.do_eval:
+    if training_args.do_eval and not hf_datasets:
         raw_datasets["validation"] = raw_datasets["validation"].map(
             process_smiles_to_graph,
             num_proc=data_args.preprocessing_num_workers,
