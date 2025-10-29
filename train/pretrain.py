@@ -437,7 +437,7 @@ def main():
     set_seed(training_args.seed)
     data_files = {}
     dataset_args = {}
-    
+
     # Check if loading from Hugging Face Hub or local files
     if data_args.dataset_name is not None:
         # Load from Hugging Face Hub
@@ -455,7 +455,10 @@ def main():
         # Load from local files (existing behavior)
         # Train datasets
         if data_args.train_files is not None:
-            if isinstance(data_args.train_files, list) and len(data_args.train_files) > 0:
+            if (
+                isinstance(data_args.train_files, list)
+                and len(data_args.train_files) > 0
+            ):
                 print(data_args.train_files)
                 data_files["train"] = data_args.train_files
                 print("Number of train files:", len(data_args.train_files))

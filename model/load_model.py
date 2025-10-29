@@ -31,7 +31,7 @@ def initialize_weights(model):
 def load_model(config, tokenizer=None, training_args=None, model_args=None):
     """
     Load Model using config and model_args
-    
+
     Supports loading from:
     - Local path: "/path/to/model"
     - Hugging Face Hub: "username/model-name"
@@ -48,11 +48,11 @@ def load_model(config, tokenizer=None, training_args=None, model_args=None):
 
     Returns:
         model: Loaded model instance
-        
+
     Examples:
         # Load from local path
         model_args.model_name_or_path = "/path/to/model"
-        
+
         # Load from Hugging Face Hub
         model_args.model_name_or_path = "zihaojing/mumo-pretrain"
     """
@@ -73,7 +73,7 @@ def load_model(config, tokenizer=None, training_args=None, model_args=None):
         # Hub format: "username/model-name"
         # Local format: "/path/to/model" or "relative/path/to/model"
         print(f"Loading model from: {model_args.model_name_or_path}")
-        
+
         model = model_class.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),

@@ -12,7 +12,11 @@ Authors: Zihao Jing¹, Yan Sun¹, Yanyi Li², Sugitha Janarthanan², Alana Deng�
 
 2 Department of Biochemistry, Western University, London, ON, Canada
 
-Contact: zjing29@uwo.ca, phu49@uwo.ca
+Contact: 
+
+Zihao Jing: zjing29@uwo.ca | Wechat: A2016A315214 | Instagram: nobeljing25
+
+Pingzhao Hu: phu49@uwo.ca
 
 This repository contains the code, datasets, and trained models accompanying our NeurIPS 2025 paper.
 
@@ -119,7 +123,79 @@ All datasets used in the paper are hosted on the Hugging Face Hub:
   - Large-scale corpus of molecular SMILES for pretraining
   - Used with on-the-fly graph construction in the training pipeline
 
-You can point scripts directly to these Hub datasets via `--dataset_name` and `--dataset_config_name` (see examples below). If you prefer local files, see `preprocess/mol3d_processor.py` for data processing utilities.
+You can point scripts directly to these Hub datasets via `--dataset_name` and `--dataset_config_name ${TASK_NAME}` (no local files needed). If you prefer local files, see `preprocess/mol3d_processor.py` for data processing utilities.
+
+### 3.1 Local dataset layout (only for custom/local files)
+
+Folder names must be consistent with the `DATATYPE` and `TASK_NAME` used in scripts (e.g., `scripts/sft_tdc/regression/LD50.sh`, `scripts/sft_QM/qm7.sh`).
+
+```text
+${DATA_DIR}/dataset/
+  └── ${DATATYPE}/
+      └── ${TASK_NAME}/
+          ├── train.jsonl
+          ├── valid.jsonl
+          └── test.jsonl
+```
+
+- Examples:
+  - `DATATYPE=tdc_geo_tox`, `TASK_NAME=LD50_Zhu`
+  - `DATATYPE=QM`, `TASK_NAME=qm7`
+
+Use the same `TASK_NAME` string in your scripts and folder name to avoid mismatches.
+
+### 3.2 File formats and schema (before vs. after processing)
+
+- Before processing: CSV files
+
+```csv
+smiles,Y
+CCO,1
+CC(=O)O,0
+```
+
+  - Columns:
+    - `smiles`: SMILES string
+    - `Y`: label column (classification/regression). For QM tasks, the label name can differ (e.g., `u0_atom` in QM7). Set via `--label_column_name`.
+
+- After processing: JSONL files with graph features
+
+```json
+{"smiles": "CCO", "x": [[...]], "edge_index": [[...],[...]], "edge_attr": [[...]], "Y": 1}
+```
+
+  - Required graph keys:
+    - `x`: node feature matrix (list of lists)
+    - `edge_index`: 2×E edge indices (list of two lists)
+    - `edge_attr`: edge feature matrix (list of lists)
+  - Other optional keys are supported (e.g., geometry variants) but not required.
+
+Script flags to bind columns:
+- `--data_column_name smiles`
+- `--label_column_name Y` (or your label, e.g., `u0_atom` for QM7)
+
+### 3.3 Generate graph fields from SMILES
+
+You can generate graph fields on the fly using `preprocess/mol3d_processor.py` or during training (see pretraining pipeline). Minimal example:
+
+```python
+from preprocess.mol3d_processor import smiles2GeoGraph
+
+smiles = "CCO"
+g = smiles2GeoGraph(smiles, brics=False, geo_operation=False)
+
+record = {
+    "smiles": smiles,
+    "x": g.x.tolist(),
+    "edge_index": g.edge_index.tolist(),
+    "edge_attr": g.edge_attr.tolist(),
+    # add your label(s) here, e.g., "Y": 1
+}
+```
+
+Notes:
+- For local finetuning, provide `train.jsonl`, `valid.jsonl`, `test.jsonl` under the task folder.
+- Ensure `DATATYPE`/`TASK_NAME` match the script paths you run.
 
 ---
 
@@ -176,8 +252,6 @@ bash scripts/sft_tdc/regression/LD50.sh
 ```bash
 bash scripts/sft_QM/qm7.sh
 ```
-
-When the training finished, the results will be written to `./results/`. We have already  provided the results we trained for the paper in the `./results` folder.
 
 ### **(3) Inference Example**
 
