@@ -2,15 +2,9 @@
 : "${DATA_DIR:?Environment variable DATA_DIR not set}"
 
 # ============================================
-# This script loads datasets from Hugging Face Hub (PUBLIC dataset)
+# This script loads datasets from LOCAL files
 # ============================================
-# Dataset: zihaojing/MuMo-Pretraining (public)
-# 
-# Note: --use_auth_token is NOT needed for public datasets
-# Only add --use_auth_token if:
-#   - Your dataset is private
-#   - Your model is private
-#   - The dataset/model is gated and requires access approval
+# For Hugging Face Hub loading, use mumo_hub.sh instead
 # ============================================
 
 export PYTHONPATH=${BASE_DIR}
@@ -49,7 +43,8 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     --output_dir ${output_model} \
     --model_class MuMoPretrain \
     --ddp_timeout 18000000 \
-    --dataset_name zihaojing/MuMo-Pretraining \
+    --train_files ${DATA_DIR}/dataset/pretrain/chembl_train_dict.jsonl \
+    --validation_files ${DATA_DIR}/dataset/pretrain/chembl_eval_dict.jsonl \
     --preprocessing_num_workers 20 \
     --seed 42 \
     --ignore_data_skip true \
@@ -80,4 +75,3 @@ deepspeed --master_port ${MASTER_PORT} --include localhost:${GPUs} ${BASE_DIR}/t
     
     # --resume_from_checkpoint ${output_model}/checkpoint-20400 \
     # --save_steps 1243 \
-

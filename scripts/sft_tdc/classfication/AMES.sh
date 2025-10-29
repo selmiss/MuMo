@@ -4,7 +4,7 @@
 export PYTHONPATH=${BASE_DIR}
 
 filename=$(basename "${BASH_SOURCE[0]}" .sh)
-MODEL_NAME=mumo
+MODEL_NAME=mumo-pretrain
 TASK_NAME=AMES
 MODEL_CLASS=MuMoFinetune
 DATATYPE=tdc_geo_tox
@@ -15,7 +15,7 @@ output_model=${DATA_DIR}/model/sft/${MODEL_NAME}/${MODEL_NAME}_${MODEL_CLASS}_${
 export WANDB_PROJECT="NeurIPS_Rebuttal_SFT"
 export WANDB_DIR="${output_model}/wandb"
 
-BASE_MODEL=${DATA_DIR}/model/pretrain/${MODEL_NAME}
+BASE_MODEL=zihaojing/${MODEL_NAME}
 DS_CONFIG=${BASE_DIR}/config/deepspeed/ds_config_zero2.json
 MODEL_CONFIG=${BASE_DIR}/config/mumo/config_cls.json
 
@@ -28,7 +28,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29500 --include localhost:7 ${BASE_DIR}/train/finetune.py \
     --run_name ${filename} \
     --model_class ${MODEL_CLASS} \
     --task_type classification \
@@ -36,9 +36,8 @@ deepspeed --master_port 29500 --include localhost:0 ${BASE_DIR}/train/finetune.p
     --config_name ${MODEL_CONFIG} \
     --pool_method bipooler \
     --tokenizer_name ${BASE_MODEL} \
-    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.jsonl \
-    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.jsonl \
-    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.jsonl \
+    --dataset_name zihaojing/MuMo-Finetune \
+    --dataset_config_name ${TASK_NAME} \
     --data_column_name smiles \
     --label_column_name Y \
     --per_device_train_batch_size 4 \

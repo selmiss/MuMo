@@ -31,18 +31,30 @@ def initialize_weights(model):
 def load_model(config, tokenizer=None, training_args=None, model_args=None):
     """
     Load Model using config and model_args
+    
+    Supports loading from:
+    - Local path: "/path/to/model"
+    - Hugging Face Hub: "username/model-name"
+    - Training from scratch: set model_args.model_name_or_path to None
 
     Args:
-        config (_type_): _description_
-        tokenizer (_type_, optional): _description_. Defaults to None.
-        training_args (_type_, optional): _description_. Defaults to None.
-        model_args (_type_, optional): _description_. Defaults to None.
+        config: Model configuration
+        tokenizer (optional): Tokenizer instance
+        training_args (optional): Training arguments
+        model_args (optional): Model arguments including model_name_or_path
 
     Raises:
-        ValueError: _description_
+        ValueError: If model class not found or invalid configuration
 
     Returns:
-        model
+        model: Loaded model instance
+        
+    Examples:
+        # Load from local path
+        model_args.model_name_or_path = "/path/to/model"
+        
+        # Load from Hugging Face Hub
+        model_args.model_name_or_path = "zihaojing/mumo-pretrain"
     """
 
     model_class_str = model_args.model_class
@@ -57,7 +69,11 @@ def load_model(config, tokenizer=None, training_args=None, model_args=None):
 
     print("Start load model")
     if model_args.model_name_or_path:
-
+        # This supports both local paths and Hugging Face Hub model IDs
+        # Hub format: "username/model-name"
+        # Local format: "/path/to/model" or "relative/path/to/model"
+        print(f"Loading model from: {model_args.model_name_or_path}")
+        
         model = model_class.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -66,7 +82,7 @@ def load_model(config, tokenizer=None, training_args=None, model_args=None):
             revision=model_args.model_revision,
             trust_remote_code=True,
             use_flash_attention_2=False,
-            use_auth_token=True if model_args.use_auth_token else None,
+            token=True if model_args.use_auth_token else None,  # Updated parameter name
         )
     else:
         model = model_class(config)
@@ -87,31 +103,4 @@ def load_model(config, tokenizer=None, training_args=None, model_args=None):
 
     print("End load model")
     ### End Load Model
-    return model
-
-
-def load_model_from_path(model_path, model_class: str):
-    """
-    Load model from it's dir path.
-
-    Args:
-        model_path (_type_): _description_
-        model_class (str): _description_
-
-    Returns:
-        model
-    """
-
-    model_class_str = model_class
-    model_class = globals().get(model_class_str)
-    if model_class is None:
-        raise ValueError(f"Model class '{model_class_str}' not found in current scope.")
-
-    config = AutoConfig.from_pretrained(model_path)
-    model = model_class.from_pretrained(
-        model_path,
-        from_tf=bool(".ckpt" in model_path),
-        config=config,
-        use_flash_attention_2=False,
-    )
     return model

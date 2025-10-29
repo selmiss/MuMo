@@ -27,13 +27,12 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29502 --include localhost:2 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29502 --include localhost:7 ${BASE_DIR}/train/finetune.py \
     --run_name ${filename} \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
-    --train_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/train.jsonl \
-    --validation_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/valid.jsonl \
-    --test_files ${DATA_DIR}/dataset/${DATATYPE}/${TASK_NAME}/test.jsonl \
+    --dataset_name zihaojing/MuMo-Finetune \
+    --dataset_config_name ${TASK_NAME} \
     --data_column_name smiles \
     --label_column_name label \
     --normlization True \
@@ -68,5 +67,4 @@ deepspeed --master_port 29502 --include localhost:2 ${BASE_DIR}/train/finetune.p
     --ignore_data_skip true \
     --bf16 False \
     --torch_dtype float32 \
-    --deepspeed ${DS_CONFIG} \
     | tee -a ${output_model}/train.log

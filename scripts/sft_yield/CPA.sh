@@ -27,7 +27,7 @@ cp ${SCRIPT_PATH} ${output_model}
 cp ${DS_CONFIG} ${output_model}
 
 # Runner
-deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.py \
+deepspeed --master_port 29501 --include localhost:7 ${BASE_DIR}/train/finetune.py \
     --run_name ${filename} \
     --model_name_or_path ${BASE_MODEL} \
     --config_name ${CONFIG_NAME} \
@@ -68,5 +68,4 @@ deepspeed --master_port 29501 --include localhost:1 ${BASE_DIR}/train/finetune.p
     --ignore_data_skip true \
     --bf16 False \
     --torch_dtype float32 \
-    --deepspeed ${DS_CONFIG} \
     | tee -a ${output_model}/train.log

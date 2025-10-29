@@ -381,29 +381,46 @@ def main():
     if True:
         data_files = {}
         dataset_args = {}
-        if data_args.train_files is not None:
-            data_files["train"] = data_args.train_files
-        if data_args.validation_files is not None:
-            data_files["validation"] = data_args.validation_files
-        if data_args.test_files is not None:
-            data_files["test"] = data_args.test_files
-
-        # Identify extension
-        if "train" in data_files and len(data_files["train"]) > 0:
-            extension = data_files["train"][0].split(".")[-1]
-        elif "validation" in data_files and len(data_files["validation"]) > 0:
-            extension = data_files["validation"][0].split(".")[-1]
-        else:
-            raise ValueError(
-                "No valid training or validation files found to determine the extension."
+        
+        # Check if loading from Hugging Face Hub or local files
+        if data_args.dataset_name is not None:
+            # Load from Hugging Face Hub
+            print(f"Loading dataset from Hugging Face Hub: {data_args.dataset_name}")
+            raw_datasets = load_dataset(
+                data_args.dataset_name,
+                data_args.dataset_config_name,
+                streaming=data_args.streaming,
+                cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+                use_auth_token=True if model_args.use_auth_token else None,
             )
+            # For Hub datasets, we assume they are already in the correct format (jsonl/json)
+            extension = "jsonl"
+        else:
+            # Load from local files (existing behavior)
+            if data_args.train_files is not None:
+                data_files["train"] = data_args.train_files
+            if data_args.validation_files is not None:
+                data_files["validation"] = data_args.validation_files
+            if data_args.test_files is not None:
+                data_files["test"] = data_args.test_files
 
-        # --- Debugging --hard code here ------------------------------------------------------------
-        # if extension == "csv":
-        #     extension = "jsonl"
-        # --- Debugging --hard code here ------------------------------------------------------------
+            # Identify extension
+            if "train" in data_files and len(data_files["train"]) > 0:
+                extension = data_files["train"][0].split(".")[-1]
+            elif "validation" in data_files and len(data_files["validation"]) > 0:
+                extension = data_files["validation"][0].split(".")[-1]
+            else:
+                raise ValueError(
+                    "No valid training or validation files found to determine the extension."
+                )
 
-        if extension == "txt":
+            # --- Debugging --hard code here ------------------------------------------------------------
+            # if extension == "csv":
+            #     extension = "jsonl"
+            # --- Debugging --hard code here ------------------------------------------------------------
+
+        # Only process local files (Hub datasets are already processed)
+        if data_args.dataset_name is None and extension == "txt":
             extension = "text"
             dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
             # For txt files, we need to process SMILES into graph data
@@ -444,7 +461,7 @@ def main():
             )
             # Filter out None values (invalid SMILES)
             raw_datasets = raw_datasets.filter(lambda x: x is not None)
-        elif extension == "csv":
+        elif data_args.dataset_name is None and extension == "csv":
             # For CSV files, we need to process SMILES into graph data
             from preprocess.mol3d_processor import smiles2GeoGraph
 
@@ -483,7 +500,8 @@ def main():
             )
             # Filter out None values (invalid SMILES)
             raw_datasets = raw_datasets.filter(lambda x: x is not None)
-        else:
+        elif data_args.dataset_name is None:
+            # Load from local JSON/JSONL files
             if extension == "jsonl":
                 extension = "json"
             raw_datasets = load_dataset(
@@ -495,7 +513,8 @@ def main():
             )
 
         # If no validation data is there, validation_split_percentage will be used to divide the dataset.
-        if "validation" not in raw_datasets.keys():
+        # Only apply this for local file loading, not Hub datasets
+        if data_args.dataset_name is None and "validation" not in raw_datasets.keys():
             raw_datasets["validation"] = load_dataset(
                 extension,
                 data_files=data_files,

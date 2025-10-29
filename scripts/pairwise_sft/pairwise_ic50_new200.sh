@@ -71,5 +71,6 @@ deepspeed --master_port 29502 --include localhost:6 ${BASE_DIR}/train/pairwise_s
     --ignore_data_skip true \
     --bf16 False \
     --torch_dtype float32 \
-    --deepspeed ${DS_CONFIG} \
     | tee -a ${output_model}/train.log
+
+    # --deepspeed ${DS_CONFIG}

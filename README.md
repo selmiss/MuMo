@@ -2,7 +2,11 @@
 
 *Accepted at NeurIPS 2025*
 
-Authors: Zihao Jing1, Yan Sun1, Yan Yi Li2, Sugitha Janarthanan2, Alana Deng1, Pingzhao Hu1,2∗
+- 📄 **Paper**: [NeurIPS 2025 Poster](https://neurips.cc/virtual/2025/poster/119127)
+- 🧠 **Pretrained Model**: [zihaojing/MuMo-Pretrained](https://huggingface.co/zihaojing/MuMo-Pretrained)
+- 🗂️ **Datasets**: [zihaojing/MuMo-Finetuning](https://huggingface.co/datasets/zihaojing/MuMo-Finetuning) · [zihaojing/MuMo-Pretraining](https://huggingface.co/datasets/zihaojing/MuMo-Pretraining)
+
+Authors: Zihao Jing¹, Yan Sun¹, Yanyi Li², Sugitha Janarthanan², Alana Deng¹, Pingzhao Hu¹²∗
 
 1 Department of Computer Science, Western University, London, ON, Canada
 
@@ -10,7 +14,7 @@ Authors: Zihao Jing1, Yan Sun1, Yan Yi Li2, Sugitha Janarthanan2, Alana Deng1, P
 
 Contact: zjing29@uwo.ca, phu49@uwo.ca
 
-This repository contains the code, dataset, and trained models accompanying our NeurIPS 2025 paper.
+This repository contains the code, datasets, and trained models accompanying our NeurIPS 2025 paper.
 
 **Follow the instructions below, we believe you can reproduce the whole pretrain and finetune results within 24h using 4*A100-80G GPUs.**
 
@@ -27,12 +31,18 @@ Across 22 benchmark tasks from TDC and MoleculeNet, MuMo achieves an average imp
 
 ## **1. Repository Overview**
 
-This repository provides:
+MuMo is a structured multimodal molecular learning framework that fuses 2D topology and 3D geometry with sequence signals using:
 
-- **Code**: Implementation of the proposed method
-- **Dataset**: Raw datasets and preprocessed dataset for pretraining and finetuning
-- **Trained Models**: Pre-trained model files
-- **Reproducibility**: Instructions for setting up the environment and running
+- **Structured Fusion Pipeline (SFP)**: builds a stable structural prior by combining 2D graphs and 3D conformers
+- **Progressive Injection (PI)**: asymmetrically injects the prior into the token stream to avoid modality collapse
+- **State space backbone (Mamba)**: supports long-range dependencies and efficient training/inference
+
+This repo provides:
+
+- **Code**: Pretraining, finetuning (TDC, MoleculeNet, QM), and inference
+- **Datasets**: Pretraining and finetuning datasets on the Hugging Face Hub
+- **Checkpoints**: Pretrained model on the Hub for downstream use
+- **Reproducibility**: Scripts to reproduce results with DeepSpeed
 
 ---
 
@@ -96,47 +106,43 @@ Before running any scripts, you must configure the environment variables for you
 
 ---
 
-## **3. Dataset**
+## **3. Datasets on the Hub**
 
-The pretrain and finetune datasets used in our experiments can be downloaded from the following links:
+All datasets used in the paper are hosted on the Hugging Face Hub:
 
-🔗 [Finetune Dataset](https://drive.google.com/file/d/1-KVM21Hc1pdx4p3agxqiuIuk-Gur_5KO/view?usp=sharing) 243.8M
+- 🗂️ Finetuning datasets (TDC, QM, Reaction Yield, etc.): [`zihaojing/MuMo-Finetuning`](https://huggingface.co/datasets/zihaojing/MuMo-Finetuning)
+  - Includes tasks such as AMES, BBBP, DILI, LD50_Zhu, Lipophilicity, etc.
+  - Already processed with graph and geometry features `x`, `edge_index`, `edge_attr`; includes SMILES as `smiles`
+  - Splits: `train/validation/test` per task
 
-🔗 [Pretrain Dataset](https://drive.google.com/file/d/16m476wsvnVVbo6fD5qNVAeVN4FLathX-/view?usp=sharing) 1.66G
+- 🗂️ Pretraining dataset: [`zihaojing/MuMo-Pretraining`](https://huggingface.co/datasets/zihaojing/MuMo-Pretraining)
+  - Large-scale corpus of molecular SMILES for pretraining
+  - Used with on-the-fly graph construction in the training pipeline
 
-After downloading the ZIP compressed dataset, extract it to obtain the `dataset` folder. If both pretraining and fine-tuning datasets are downloaded, merge them into a single `dataset` folder.
-
-Place the extracted and merged `dataset` folder in an appropriate location on your system and update the `DATA_DIR` variable in `init_env.sh` to point to the directory containing the dataset folder (see **Environment Setup** section above).
-
-If you want to process your own data, please use `mol3d_processor.py` to do it, there is an example in it.
+You can point scripts directly to these Hub datasets via `--dataset_name` and `--dataset_config_name` (see examples below). If you prefer local files, see `preprocess/mol3d_processor.py` for data processing utilities.
 
 ---
 
 ## **4. Model Checkpoints**
 
-Pre-trained models are available at:
+- 🧠 Pretrained checkpoint: [`zihaojing/MuMo-Pretrained`](https://huggingface.co/zihaojing/MuMo-Pretrained)
 
-🔗 [Pretrained Model (Anonymous)](https://drive.google.com/file/d/1J5vNYV9q7rqpVIZsFuuqU6CrBqys7K2P/view?usp=sharing) 1.82G
+Load directly via Transformers:
 
-After downloading and extracting the pre-trained model, you will obtain a folder named `model`. Place this `model` folder in the same directory as the `dataset` folder.
+```python
+from transformers import AutoModel, AutoConfig, AutoTokenizer
+
+repo = "zihaojing/MuMo-Pretrained"
+config = AutoConfig.from_pretrained(repo, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(repo)
+model = AutoModel.from_pretrained(repo, trust_remote_code=True)
+```
 
 ---
 
 ## **5. Running the Code**
 
-Make sure you put the data and model in the right place and update the `DATA_DIR`and `BASE_DIR`  in `.sh` files with the right address.
-
-We run pretraining on 4\*A100-80GPUs, and finetuning on 2\*A100-80GPUs using deepspeed architecture.  So, it's recommended you have 4 A100-80G GPUs. If not, please adjust the batch size to fit your computing hardware.
-
-### (0) One Line Run
-
-**One line of code to run all the pipeline! (Pretrain & Finetune)**
-
-```bash
-cd MuMo/scripts/; bash reproduce.sh
-```
-
-Be sure that you prepare pretrain datasets and finetuning datasets in a `dataset`directory.
+Make sure you set `BASE_DIR` and `DATA_DIR` in `init_env.sh` and source it before running. We pretrain on 4×A100-80G and finetune on 2×A100-80G with DeepSpeed. Adjust batch sizes if you have fewer resources.
 
 ### **(1) Pretrain from scratch**
 
@@ -149,17 +155,37 @@ cd MuMo
 bash ./scripts/pretrain/mumo.sh
 ```
 
-### **(2) Finetuning**
+### **(2) Finetuning Examples**
 
-To finetune the pretrained model, run:
+Below are minimal example scripts for common settings. Feel free to adjust GPU selection, ports, and batch sizes.
+
+- TDC Classification (AMES): `scripts/sft_tdc/classfication/AMES.sh`
 
 ```bash
-cd MuMo
-master_port=29500 gpus=0,1 bash ./scripts/sft/tuning_all.sh mumo bace,bbbp,clintox,tox21,sider,delaney,lipo,freesolv MuMoFinetune sft_geo_randomsplit;
-master_port=29500 gpus=0,1 bash ./scripts/sft/tuning_all.sh mumo bace,bbbp MuMoFinetune sft_geo_scaffoldsplit;
+bash scripts/sft_tdc/classfication/AMES.sh
+```
+
+- TDC Regression (LD50"): `scripts/sft_tdc/regression/LD50.sh`
+
+```bash
+bash scripts/sft_tdc/regression/LD50.sh
+```
+
+- QM Task (QM7): `scripts/sft_QM/qm7.sh`
+
+```bash
+bash scripts/sft_QM/qm7.sh
 ```
 
 When the training finished, the results will be written to `./results/`. We have already  provided the results we trained for the paper in the `./results` folder.
+
+### **(3) Inference Example**
+
+For batch inference on IC50 with a finetuned checkpoint, use:
+
+```bash
+bash scripts/infer/infer_ic50.sh
+```
 
 ## 6. Results
 
@@ -171,7 +197,7 @@ Note that different GPUs or batch size may influence the results slightly, but o
 
 If you find this work useful, please cite:
 
-Jing, Zihao; Sun, Yan; Li, Yan Yi; Janarthanan, Sugitha; Deng, Alana; Hu, Pingzhao. "MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection." In Advances in Neural Information Processing Systems (NeurIPS), 2025.
+Zihao Jing, Yan Sun, Yanyi Li, Sugitha Janarthanan, Alana Deng, and Pingzhao Hu. "MuMo: Multimodal Molecular Representation Learning via Structural Fusion and Progressive Injection." In Advances in Neural Information Processing Systems (NeurIPS), 2025. ([paper](https://neurips.cc/virtual/2025/poster/119127))
 
 ```bibtex
 @inproceedings{jing2025mumo,

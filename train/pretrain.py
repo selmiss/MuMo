@@ -437,67 +437,82 @@ def main():
     set_seed(training_args.seed)
     data_files = {}
     dataset_args = {}
-
-    # Train datasets
-    if data_args.train_files is not None:
-        if isinstance(data_args.train_files, list) and len(data_args.train_files) > 0:
-            print(data_args.train_files)
-            data_files["train"] = data_args.train_files
-            print("Number of train files:", len(data_args.train_files))
+    
+    # Check if loading from Hugging Face Hub or local files
+    if data_args.dataset_name is not None:
+        # Load from Hugging Face Hub
+        print(f"Loading dataset from Hugging Face Hub: {data_args.dataset_name}")
+        raw_datasets = load_dataset(
+            data_args.dataset_name,
+            data_args.dataset_config_name,
+            streaming=data_args.streaming,
+            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+        # For Hub datasets, we assume they are already in the correct format (jsonl/json)
+        extension = "jsonl"
+    else:
+        # Load from local files (existing behavior)
+        # Train datasets
+        if data_args.train_files is not None:
+            if isinstance(data_args.train_files, list) and len(data_args.train_files) > 0:
+                print(data_args.train_files)
+                data_files["train"] = data_args.train_files
+                print("Number of train files:", len(data_args.train_files))
+            else:
+                print("Warning: train_files is empty or not a list.")
         else:
-            print("Warning: train_files is empty or not a list.")
-    else:
-        print("Warning: train_files is None.")
+            print("Warning: train_files is None.")
 
-    # Evaluation datasets
-    if data_args.validation_files is not None:
-        if (
-            isinstance(data_args.validation_files, list)
-            and len(data_args.validation_files) > 0
-        ):
-            data_files["validation"] = data_args.validation_files
+        # Evaluation datasets
+        if data_args.validation_files is not None:
+            if (
+                isinstance(data_args.validation_files, list)
+                and len(data_args.validation_files) > 0
+            ):
+                data_files["validation"] = data_args.validation_files
+            else:
+                print("Warning: validation_files is empty or not a list.")
         else:
-            print("Warning: validation_files is empty or not a list.")
-    else:
-        print("Warning: validation_files is None.")
+            print("Warning: validation_files is None.")
 
-    # Identify extentions
-    if "train" in data_files and len(data_files["train"]) > 0:
-        extension = data_files["train"][0].split(".")[-1]
-    elif "validation" in data_files and len(data_files["validation"]) > 0:
-        extension = data_files["validation"][0].split(".")[-1]
-    else:
-        raise ValueError(
-            "No valid training or validation files found to determine the extension."
-        )
-    if extension == "txt":
-        extension = "text"
-        dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
-        raw_datasets = load_dataset(
-            extension,
-            data_files=data_files,
-            streaming=data_args.streaming,
-            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
-            **dataset_args,
-        )
-    elif extension == "csv":
-        raw_datasets = load_dataset(
-            "csv",
-            data_files=data_files,
-            streaming=data_args.streaming,
-            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
-            **dataset_args,
-        )
-    else:
-        if extension == "jsonl":
-            extension = "json"
-        raw_datasets = load_dataset(
-            extension,
-            data_files=data_files,
-            streaming=data_args.streaming,
-            cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
-            **dataset_args,
-        )
+        # Identify extentions
+        if "train" in data_files and len(data_files["train"]) > 0:
+            extension = data_files["train"][0].split(".")[-1]
+        elif "validation" in data_files and len(data_files["validation"]) > 0:
+            extension = data_files["validation"][0].split(".")[-1]
+        else:
+            raise ValueError(
+                "No valid training or validation files found to determine the extension."
+            )
+        if extension == "txt":
+            extension = "text"
+            dataset_args["keep_linebreaks"] = data_args.keep_linebreaks
+            raw_datasets = load_dataset(
+                extension,
+                data_files=data_files,
+                streaming=data_args.streaming,
+                cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+                **dataset_args,
+            )
+        elif extension == "csv":
+            raw_datasets = load_dataset(
+                "csv",
+                data_files=data_files,
+                streaming=data_args.streaming,
+                cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+                **dataset_args,
+            )
+        else:
+            if extension == "jsonl":
+                extension = "json"
+            raw_datasets = load_dataset(
+                extension,
+                data_files=data_files,
+                streaming=data_args.streaming,
+                cache_dir=os.path.join(training_args.output_dir, "dataset_cache"),
+                **dataset_args,
+            )
 
     if data_args.streaming:
         raw_datasets = raw_datasets.shuffle(

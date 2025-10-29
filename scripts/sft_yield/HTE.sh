@@ -68,5 +68,4 @@ deepspeed --master_port 29504 --include localhost:4 ${BASE_DIR}/train/finetune.p
     --ignore_data_skip true \
     --bf16 False \
     --torch_dtype float32 \
-    --deepspeed ${DS_CONFIG} \
     | tee -a ${output_model}/train.log
