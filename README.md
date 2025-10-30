@@ -2,7 +2,7 @@
 
 *Accepted at NeurIPS 2025*
 
-- 📄 **Paper**: [NeurIPS 2025 Poster](https://neurips.cc/virtual/2025/poster/119127)
+- 📄 **Paper**: [NeurIPS 2025 - MuMo](https://arxiv.org/abs/2510.23640)
 - 🧠 **Pretrained Model**: [zihaojing/MuMo-Pretrained](https://huggingface.co/zihaojing/MuMo-Pretrained)
 - 🗂️ **Datasets**: [zihaojing/MuMo-Finetuning](https://huggingface.co/datasets/zihaojing/MuMo-Finetuning) · [zihaojing/MuMo-Pretraining](https://huggingface.co/datasets/zihaojing/MuMo-Pretraining)
 
